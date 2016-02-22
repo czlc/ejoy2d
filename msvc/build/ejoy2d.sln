@@ -1,8 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30110.0
-MinimumVisualStudioVersion = 10.0.40219.1
+# Visual Studio 2012
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ejoy2d", "ejoy2d\ejoy2d.vcxproj", "{D3A9E9A6-062D-4C26-BF35-8F18ED840D8F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{01BCD8E7-7F07-46E6-92CA-4B3E56E35031} = {01BCD8E7-7F07-46E6-92CA-4B3E56E35031}
@@ -12,6 +10,38 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{029E13FB-276A-4B6F-8346-00F3072734E7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glew", "glew\glew.vcxproj", "{01BCD8E7-7F07-46E6-92CA-4B3E56E35031}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{BEB48CEB-D3F5-4E7F-8854-0305D5C0F284}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\examples\ex01.lua = ..\..\examples\ex01.lua
+		..\..\examples\ex02.lua = ..\..\examples\ex02.lua
+		..\..\examples\ex03.lua = ..\..\examples\ex03.lua
+		..\..\examples\ex04.lua = ..\..\examples\ex04.lua
+		..\..\examples\ex05.lua = ..\..\examples\ex05.lua
+		..\..\examples\ex06.lua = ..\..\examples\ex06.lua
+		..\..\examples\ex07.lua = ..\..\examples\ex07.lua
+		..\..\examples\ex08.lua = ..\..\examples\ex08.lua
+		..\..\examples\ex09.lua = ..\..\examples\ex09.lua
+		..\..\examples\flappybird.lua = ..\..\examples\flappybird.lua
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "asset", "asset", "{0B3C6682-AF82-48E3-94FE-A222DE5E9647}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\examples\asset\sample.lua = ..\..\examples\asset\sample.lua
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "script", "script", "{295A372D-D205-49AB-818F-B3A56FE07055}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\ejoy2d\geometry.lua = ..\..\ejoy2d\geometry.lua
+		..\..\ejoy2d\init.lua = ..\..\ejoy2d\init.lua
+		..\..\ejoy2d\matrix.lua = ..\..\ejoy2d\matrix.lua
+		..\..\ejoy2d\particle.lua = ..\..\ejoy2d\particle.lua
+		..\..\ejoy2d\richtext.lua = ..\..\ejoy2d\richtext.lua
+		..\..\ejoy2d\shader.lua = ..\..\ejoy2d\shader.lua
+		..\..\ejoy2d\simplepackage.lua = ..\..\ejoy2d\simplepackage.lua
+		..\..\ejoy2d\sprite.lua = ..\..\ejoy2d\sprite.lua
+		..\..\ejoy2d\spritepack.lua = ..\..\ejoy2d\spritepack.lua
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,5 +64,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0B3C6682-AF82-48E3-94FE-A222DE5E9647} = {BEB48CEB-D3F5-4E7F-8854-0305D5C0F284}
 	EndGlobalSection
 EndGlobal

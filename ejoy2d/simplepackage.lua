@@ -1,7 +1,7 @@
 -- It's a simple sprite package warpper, use your own asset format instead.
 
 local ejoy2d = require "ejoy2d"
-local ppm = require "ejoy2d.ppm"
+local png = require "ejoy2d.png"
 local pack = require "ejoy2d.spritepack"
 local sprite = require "ejoy2d.sprite"
 
@@ -18,7 +18,7 @@ local function require_tex(filename)
 	local tex = #textures
 	assert(tex < MAX_TEXTURE)
 	table.insert(textures, filename)
-	ppm.texture(tex,filename)
+	png.texture(tex, filename)
 	return tex
 end
 
