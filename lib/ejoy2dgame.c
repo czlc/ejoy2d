@@ -9,6 +9,7 @@
 #include "shader.h"
 #include "texture.h"
 #include "ppm.h"
+#include "png.h"
 #include "spritepack.h"
 #include "sprite.h"
 #include "lmatrix.h"
@@ -115,6 +116,7 @@ ejoy2d_init(lua_State *L) {
 	luaL_requiref(L, "ejoy2d.shader.c", ejoy2d_shader, 0);
 	luaL_requiref(L, "ejoy2d.framework", ejoy2d_framework, 0);
 	luaL_requiref(L, "ejoy2d.ppm", ejoy2d_ppm, 0);
+	luaL_requiref(L, "ejoy2d.png", ejoy2d_png, 0);
 	luaL_requiref(L, "ejoy2d.spritepack.c", ejoy2d_spritepack, 0);
 	luaL_requiref(L, "ejoy2d.sprite.c", ejoy2d_sprite, 0);
 	luaL_requiref(L, "ejoy2d.renderbuffer", ejoy2d_renderbuffer, 0);
