@@ -83,8 +83,8 @@ ejoy2d_win_init(int argc, char *argv[]) {
 }
 
 void
-ejoy2d_win_update() {
-	ejoy2d_game_update(G->game, 0.01f);
+ejoy2d_win_update(int elapse) {
+	ejoy2d_game_update(G->game, elapse / 1000.0f);
 }
 
 void

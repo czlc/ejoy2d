@@ -141,7 +141,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(EJOY2D_ROOT)\3rd\zlib\lib\win;$(EJOY2D_ROOT)\3rd\libpng\lib\win;$(EJOY2D_LIB)</AdditionalLibraryDirectories>
       <OutputFile>$(EJOY2D_ROOT)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalDependencies>opengl32.lib;libpng.lib;libzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Winmm.lib;opengl32.lib;libpng.lib;libzlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

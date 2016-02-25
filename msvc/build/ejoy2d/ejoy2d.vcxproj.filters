@@ -104,6 +104,15 @@
     <ClCompile Include="..\..\..\lib\lgeometry.c">
       <Filter>lib\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\lib\lejoy2dcore.c">
+      <Filter>lib\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\lib\png.c">
+      <Filter>lib\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\lib\screenshot.c">
+      <Filter>lib\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\stdbool.h">
@@ -201,6 +210,15 @@
     </ClInclude>
     <ClInclude Include="..\..\..\lib\render\render.h">
       <Filter>lib\src\render</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\lgeometry.h">
+      <Filter>lib\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\png.h">
+      <Filter>lib\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\lib\screenshot.h">
+      <Filter>lib\inc</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -86,7 +86,10 @@ WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 	case WM_TIMER : {
-		ejoy2d_win_update();
+		static DWORD last = timeGetTime();
+		DWORD curr = timeGetTime();
+		ejoy2d_win_update(curr - last);
+		last = curr;
 		InvalidateRect(hWnd, NULL , FALSE);
 		break;
 	}
