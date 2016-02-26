@@ -64,6 +64,8 @@ struct pack_poly_data {
 	offset_t screen_coord;	// int32_t *
 	int texid;
 	int n;
+	offset_t quad;			// uint16_t *
+	int qn;
 };
 
 #define SIZEOF_POLY (sizeof(struct pack_poly_data))

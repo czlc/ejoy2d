@@ -69,11 +69,13 @@ sprite_drawpolygon(struct sprite_pack *pack, struct pack_polygon_data *poly, con
 			continue;
 		shader_texture(glid, 0);
 		int pn = p->n;
+		int qn = p->qn;
 
 		ARRAY(struct vertex_pack, vb, pn);
 
 		uv_t * texture_coord = OFFSET_TO_POINTER(uv_t, pack, p->texture_coord);
 		int32_t * screen_coord = OFFSET_TO_POINTER(int32_t, pack, p->screen_coord);
+		uint16_t * quad = OFFSET_TO_POINTER(uint16_t, pack, p->quad);
 
 		for (j=0;j<pn;j++) {
 			int xx = screen_coord[j*2+0];
@@ -92,7 +94,7 @@ sprite_drawpolygon(struct sprite_pack *pack, struct pack_polygon_data *poly, con
 			vb[j].tx = tx;
 			vb[j].ty = ty;
 		}
-		shader_drawpolygon(pn, vb, arg->color, arg->additive);
+		shader_drawpolygon(pn, vb, arg->color, arg->additive, qn, quad);
 	}
 }
 

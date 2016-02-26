@@ -169,6 +169,12 @@ import_polygon(struct import_stream *is) {
 		for (j=0;j<p->n*2;j++) {
 			sc[j] = import_int32(is);
 		}
+		p->qn = import_byte(is);
+		int16_t *q = (int16_t *)ialloc(is->alloc, p->qn * 4 * sizeof(uint16_t));
+		p->quad = POINTER_TO_OFFSET(is->pack, q);
+		for (j=0;j<p->qn*4;j++) {
+			q[j] = import_word(is);
+		}
 	}
 }
 
@@ -564,9 +570,11 @@ static int
 lpolygon_size(lua_State *L) {
 	int n = (int)luaL_checkinteger(L,1);
 	int pn = (int)luaL_checkinteger(L,2);
+	int qn = (int)luaL_checkinteger(L,3);
 	int sz = SIZEOF_POLYGON
 		+ n * SIZEOF_POLY
-		+ 12 * pn;
+		+ 12 * pn
+		+ 8 * qn;
 	lua_pushinteger(L, sz);
 	return 1;
 }

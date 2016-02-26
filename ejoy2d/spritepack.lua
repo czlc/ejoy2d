@@ -46,6 +46,7 @@ local function pack_polygon(src, ret)
 	table.insert(ret, pack.byte(n))
 	local maxid = 0
 	local total_point = 0
+	local total_quad = 0
 	for i=1,n do
 		local data = src[i]
 		local texid = (data.tex or 1) - 1
@@ -63,9 +64,17 @@ local function pack_polygon(src, ret)
 		for j=1,pn do
 			table.insert(ret, pack.int32(data.screen[j]))
 		end
+
+		local qn = #data.quad
+		total_quad = total_quad + qn
+		assert(qn % 4 == 0, qn)
+		table.insert(ret, pack.byte(qn/4))
+		for j=1,qn do
+			table.insert(ret, pack.word(data.quad[j]))
+		end
 	end
 
-	return pack.polygon_size(n, total_point) , maxid
+	return pack.polygon_size(n, total_point/2, total_quad/4) , maxid
 end
 
 local function is_identity( mat )
