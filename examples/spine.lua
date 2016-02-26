@@ -13,7 +13,7 @@ local obj = ej.sprite("creature","deer")
 obj.action = "Attack"
 --obj:sr(45)
 -- set position (-100,0) scale (0.5)
---obj:ps(-100,0,0.5)
+obj:ps(2)
 
 local game = {}
 local screencoord = { x = 512, y = 384, scale = 1.2 }
