@@ -1019,6 +1019,7 @@ render_draw(struct render *R, enum DRAW_MODE mode, int fromidx, int ni) {
 		} else {
 			offset *= sizeof(short);
 		}
+//		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 		glDrawElements(draw_mode[mode], ni, type, (char *)0 + offset);
 		CHECK_GL_ERROR
 	}

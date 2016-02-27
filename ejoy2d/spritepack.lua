@@ -62,7 +62,7 @@ local function pack_polygon(src, ret)
 			table.insert(ret, pack.word(data.src[j]))
 		end
 		for j=1,pn do
-			table.insert(ret, pack.int32(data.screen[j]))
+			table.insert(ret, pack.int16(data.screen[j]))
 		end
 
 		local qn = #data.quad
@@ -105,6 +105,9 @@ local function pack_part(data, ret)
 				tag = tag .. "m"
 			end
 		end
+		if data.vertex and #data.vertex ~= 0 then
+			tag = tag.."v"
+		end
 		if data.color and data.color ~= 0xffffffff then
 			tag = tag .. "c"
 		end
@@ -125,6 +128,14 @@ local function pack_part(data, ret)
 					table.insert(ret, pack.int32(mat[i]))
 				end
 			end
+		else
+			if data.vertex and #data.vertex ~= 0 then
+				assert(#data.vertex < 256)
+				table.insert(ret, pack.word(#data.vertex/2))
+				for i=1,#data.vertex do
+					table.insert(ret, pack.int16(data.vertex[i]))
+				end
+			end
 		end
 		if data.color and data.color ~= 0xffffffff then
 			table.insert(ret, pack.color(data.color))
@@ -135,7 +146,7 @@ local function pack_part(data, ret)
 		if data.touch then
 			table.insert(ret, pack.word(1))
 		end
-		return pack.part_size(mat)
+		return pack.part_size(mat, #data.vertex)
 	end
 end
 

@@ -61,7 +61,7 @@ struct pack_picture {
 
 struct pack_poly_data {
 	offset_t texture_coord;	// uv_t *
-	offset_t screen_coord;	// int32_t *
+	offset_t screen_coord;	// int16_t *
 	int texid;
 	int n;
 	offset_t quad;			// uint16_t *
@@ -82,12 +82,17 @@ struct sprite_trans {
 	uint32_t color;
 	uint32_t additive;
 	int program;
+	int vn;
+	int16_t * vertex;
 };
 
 struct sprite_trans_data {
 	offset_t mat;
 	uint32_t color;
 	uint32_t additive;
+
+	int vn;
+	offset_t vertex;
 };
 
 #define SIZEOF_TRANS (sizeof(struct sprite_trans_data))
