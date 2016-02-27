@@ -9,12 +9,9 @@ pack.load {
 	"creature",
 }
 
-local obj = ej.sprite("creature","deer")
-obj.action = "Attack"
---obj:sr(45)
--- set position (-100,0) scale (0.5)
-obj:ps(2)
 
+local obj = ej.sprite("creature","deer")
+obj:ps(2.0)
 local game = {}
 local screencoord = { x = 512, y = 384, scale = 1.2 }
 
@@ -25,6 +22,7 @@ end
 function game.drawframe()
 	ej.clear(0xff808080)	-- clear (0.5,0.5,0.5,1) gray
 	obj:draw(screencoord)
+--	obj1:draw(screencoord)
 end
 
 function game.touch(what, x, y)
