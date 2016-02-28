@@ -146,7 +146,7 @@ local function pack_part(data, ret)
 		if data.touch then
 			table.insert(ret, pack.word(1))
 		end
-		return pack.part_size(mat, #data.vertex)
+		return pack.part_size(mat, data.vertex and #data.vertex or 0)
 	end
 end
 
