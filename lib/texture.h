@@ -7,6 +7,7 @@
 void texture_initrender(struct render *R);
 const char * texture_load(int id, enum TEXTURE_FORMAT type, int width, int height, void *buffer, int reduce);
 void texture_unload(int id);
+/* 根据gtexid获得otexid */
 RID texture_glid(int id);
 int texture_coord(int id, float x, float y, uint16_t *u, uint16_t *v);
 void texture_clearall();

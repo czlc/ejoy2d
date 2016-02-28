@@ -343,18 +343,18 @@ get_rich_filed_lf(const struct rich_text *rich, int idx, float * offset) {
 static int
 unicode_len(const char chr) {
 	uint8_t c = (uint8_t)chr;
-	if ((c&0x80) == 0) {
+	if ((c&0x80) == 0) {					// 1字节 0xxxxxxx 
 		return 1;
-	} else if ((c&0xe0) == 0xc0) {
+	} else if ((c&0xe0) == 0xc0) {			// 2字节 110xxxxx 10xxxxxx
 		return 2;
-	} else if ((c&0xf0) == 0xe0) {
+	} else if ((c&0xf0) == 0xe0) {			// 3字节 1110xxxx 10xxxxxx 10xxxxxx
 		return 3;
-	} else if ((c&0xf8) == 0xf0) {
+	} else if ((c&0xf8) == 0xf0) {			// 4字节 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
 		return 4;
-	} else if ((c&0xfc) == 0xf8) {
+	} else if ((c&0xfc) == 0xf8) {			// 5字节 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 		return 5;
 	} else {
-		return 6;
+		return 6;							// 6字节 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
 	}
 }
 

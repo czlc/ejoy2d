@@ -27,6 +27,7 @@ _inverse_rot(const int *m, int *o) {
 	return 0;
 }
 
+// 矩阵和它的inverse相乘得到单位矩阵
 int
 matrix_inverse(const struct matrix *mm, struct matrix *mo) {
 	const int *m = mm->m;

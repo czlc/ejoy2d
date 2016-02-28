@@ -7,36 +7,36 @@
 #include <assert.h>
 
 #define HASH_SIZE 4096
-#define TINY_FONT 12
+#define TINY_FONT 12	// 最小一号字的高度
 
 struct hash_rect {
-	struct hash_rect * next_hash;
-	struct list_head next_char;
+	struct hash_rect * next_hash;	// 同hash值的下一个矩形
+	struct list_head next_char;		// 一行中下一个hash_rect
 	struct list_head time;
-	int version;
-	int c;
-	int line;
-	int font;
+	int version;					// 版本信息，绘制完一帧会增加版本号，避免删除本帧需要用到的矩形
+	int c;							// 字符
+	int line;						// 行数索引
+	int font;						// 字体大小
 	int edge;
 	struct dfont_rect rect;
 };
 
 struct font_line {
-	int start_line;
-	int height;
-	int space;
-	struct list_head head;
+	int start_line;					// 起始y坐标
+	int height;						// 高度
+	int space;						// 当前剩余宽度
+	struct list_head head;			// 一行中的hash_rect列表
 };
 
 struct dfont {
-	int width;
-	int height;
-	int max_line;
-	int version;
-	struct list_head time;
-	struct hash_rect *freelist;
+	int width;								// 纹理宽度 1024
+	int height;								// 纹理高度 1024
+	int max_line;							// 当前行数
+	int version;							// 当前版本
+	struct list_head time;					// LRU
+	struct hash_rect *freelist;				// 可用矩形，初始化后指向矩形数组，单向列表由next_hash链接
 	struct font_line *line;
-	struct hash_rect *hash[HASH_SIZE];
+	struct hash_rect *hash[HASH_SIZE];		// hash桶数组
 };
 
 static void
@@ -130,10 +130,10 @@ const struct dfont_rect *
 dfont_lookup(struct dfont *df, int c, int font, int edge) {
 	int h = hash(c, font, edge);
 	struct hash_rect *hr = df->hash[h];
-	while (hr) {
-		if (hr->c == c && hr->font == font && hr->edge == edge) {
-			list_move_tail(&hr->time, &df->time);
-			hr->version = df->version;
+	while (hr) {	// 找到已经有这个hash值了
+		if (hr->c == c && hr->font == font && hr->edge == edge) {	// 如果就是要找的
+			list_move_tail(&hr->time, &df->time);	// 加入到df->time LRU队列中
+			hr->version = df->version;			// 因为是此帧用到所以设置版本信息，避免被删除
 			return &(hr->rect);
 		}
 		hr = hr->next_hash;
@@ -164,7 +164,7 @@ new_line(struct dfont *df, int height) {
 static struct font_line *
 find_line(struct dfont *df, int width, int height) {
 	int i;
-	for (i=0;i<df->max_line;i++) {
+	for (i=0;i<df->max_line;i++) {	// 看已有行中是否有满足需求的
 		struct font_line * line = &df->line[i];
 		if (height == line->height && width <= line->space) {
 			return line;
@@ -189,7 +189,7 @@ find_space(struct dfont *df, struct font_line *line, int width) {
 	int max_space = 0;
 	list_for_each_entry(hr, struct hash_rect, &line->head, next_char) {
 		int space = hr->rect.x - start_pos;
-		if (space >= width) {
+		if (space >= width) {	// 中间有空洞，可能是被释放过后的空洞
 			struct hash_rect *n = new_node(df);
 			if (n == NULL)
 				return NULL;
@@ -208,7 +208,7 @@ find_space(struct dfont *df, struct font_line *line, int width) {
 		}
 		start_pos = hr->rect.x + hr->rect.w;
 	}
-	int space = df->width - start_pos;
+	int space = df->width - start_pos;	// line的剩余宽度
 	if (space < width) {
 		if (space > max_space) {
 			line->space = space;
@@ -317,7 +317,7 @@ insert_char(struct dfont *df, int c, int font, struct hash_rect *hr, int edge) {
 }
 
 const struct dfont_rect * 
-dfont_insert(struct dfont *df, int c, int font, int width, int height, int edge) {
+dfont_insert(struct dfont *df, int c, int font, int width, int height, int edge) { // c 是unicode编码，font是字号
 	if (width > df->width)
 		return NULL;
 	assert(dfont_lookup(df,c,font,edge) == NULL);

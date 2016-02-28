@@ -30,6 +30,7 @@
 #define EJOY_RESUME "EJOY2D_RESUME"
 #define EJOY_PAUSE "EJOY2D_PAUSE"
 
+// 这几个函数在栈上的位置，这几个函数因为调用很频繁，所以一直放在栈上，不用每次lua_getfield来获取
 #define TRACEBACK_FUNCTION 1
 #define UPDATE_FUNCTION 2
 #define DRAWFRAME_FUNCTION 3
@@ -59,11 +60,11 @@ linject(lua_State *L) {
 	};
 	int i;
 	for (i=0;i<sizeof(ejoy_callback)/sizeof(ejoy_callback[0]);i++) {
-		lua_getfield(L, lua_upvalueindex(1), ejoy_callback[i]);
+		lua_getfield(L, lua_upvalueindex(1), ejoy_callback[i]);		// upvalueindex(1) 为fw
 		if (!lua_isfunction(L,-1)) {
 			return luaL_error(L, "%s is not found", ejoy_callback[i]);
 		}
-		lua_setfield(L, LUA_REGISTRYINDEX, ejoy_callback[i]);
+		lua_setfield(L, LUA_REGISTRYINDEX, ejoy_callback[i]);	// 注册lua函数给c调用
 	}
 	return 0;
 }
@@ -76,7 +77,7 @@ ejoy2d_framework(lua_State *L) {
 	};
 	luaL_newlibtable(L, l);
 	lua_pushvalue(L,-1);
-	luaL_setfuncs(L,l,1);
+	luaL_setfuncs(L,l,1);	// 1表示函数中可以通过lua_upvalueindex(1)的方式用这个table
 	return 1;
 }
 

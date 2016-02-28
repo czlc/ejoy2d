@@ -22,6 +22,8 @@ struct matrix {
 	int m[6];
 };
 
+// 计算mm1和mm2的相乘结果，结果保存在mm中
+// NOTE:符合列向量，从右到左，计算的时候是用右乘mm2*mm1，结果是先应用mm1，再应用mm2
 static inline void
 matrix_mul(struct matrix *mm, const struct matrix *mm1, const struct matrix *mm2) {
 	int *m = mm->m;

@@ -29,7 +29,7 @@
 
 
 #define MAX_VB_SLOT 8
-#define MAX_ATTRIB 16
+#define MAX_ATTRIB 16				/* 顶点layout上限 */
 #define MAX_TEXTURE 8
 #define CHANGE_VERTEXARRAY 0x1
 #define CHANGE_TEXTURE 0x2
@@ -43,23 +43,27 @@
 //#define CHECK_GL_ERROR assert(check_opengl_error());
 #define CHECK_GL_ERROR check_opengl_error_debug((struct render *)R, __FILE__, __LINE__);
 
+// buffer 对象，用于描述opengl 的buffer对象
 struct buffer {
-	GLuint glid;
-	GLenum gltype;
-	int n;
-	int stride;
+	GLuint glid;	// glGenBuffers返回的id
+	GLenum gltype;	// buffer类型
+	int n;			// item count
+	int stride;		// item size
 };
 
+/* 顶点attrib集合 */
 struct attrib {
-	int n;
-	struct vertex_attrib a[MAX_ATTRIB];
+	int n;									/* vertex attrib count*/
+	struct vertex_attrib a[MAX_ATTRIB];		/* vertex attrib data */
 };
 
+// render target 对象
 struct target {
 	GLuint glid;
 	RID tex;
 };
 
+/* texture 对象 */
 struct texture {
 	GLuint glid;
 	int width;
@@ -70,27 +74,31 @@ struct texture {
 	int memsize;
 };
 
+/* 顶点单个attrib layout，这个结构大部分数据是来自struct vertex_attrib，方便link之前调用glVertexAttribPointer */
 struct attrib_layout {
-	int vbslot;
-	GLint size;
- 	GLenum type;
- 	GLboolean normalized;
-	int offset;
+	int vbslot;					/* 见struct vertex_attrib vbslot */
+	GLint size;					/* item count，比如color为4 */
+ 	GLenum type;				/* item size(byte)，比如color为sizeof(uint8_t) */
+ 	GLboolean normalized;		/* normal, color 会调用， pos不用*/
+	int offset;					/* 此attrib在整个vertex结构中的偏移 */
 };
 
+// shader 对象
 struct shader {
-	GLuint glid;
+	GLuint glid;						// pgid
 #ifdef VAO_ENABLE
 	GLuint glvao;
 	RID vbslot[MAX_VB_SLOT];
 	RID ib;
 #endif
-	int n;
-	struct attrib_layout a[MAX_ATTRIB];
-	int texture_n;
-	int texture_uniform[MAX_TEXTURE];
+	int n;								// count of valid attrib_layout
+	struct attrib_layout a[MAX_ATTRIB];	// compile_link的时候设置，它是把vertex_attrib展开成易于调用glVertexAttribPointer
+	int texture_n;						// count of sample2D
+	int texture_uniform[MAX_TEXTURE];	// 每个sample2D变量对应的location，在load的时候指定(render_shader_create)
 };
 
+/* 渲染状态，修改的时候不是马上应用，而是等下一次commit的时候取得，中间可能多次修改
+   shader没放到这里是因为shader太复杂了，不好统一管理  */
 struct rstate {
 	RID target;
 	enum BLEND_FORMAT blend_src;
@@ -103,17 +111,17 @@ struct rstate {
 };
 
 struct render {
-	uint32_t changeflag;
-	RID attrib_layout;
-	RID vbslot[MAX_VB_SLOT];
+	uint32_t changeflag;			// 渲染状态modify标记，每个位代表不同的渲染状态是否修改
+	RID attrib_layout;				// vertex attribute 在数组(attrib)中的位置
+	RID vbslot[MAX_VB_SLOT];		// vertex buffer 索引数组，最多可以存在MAX_VB_SLOT个vertex buffer
 	RID indexbuffer;
-	RID program;
-	GLint default_framebuffer;
-	struct rstate current;
-	struct rstate last;
+	RID program;					// 当前绑定的shader对象索引
+	GLint default_framebuffer;		// for restore
+	struct rstate current;			// 当前渲染状态
+	struct rstate last;				// 之前渲染状态
 	struct log log;
-	struct array buffer;
-	struct array attrib;
+	struct array buffer;			// item 为 一个buffer对象的封装
+	struct array attrib;			// item 为 某种顶点layout的描述
 	struct array target;
 	struct array texture;
 	struct array shader;
@@ -272,6 +280,7 @@ compile_link(struct render *R, struct shader *s, const char * VS, const char *FS
 		glAttachShader(s->glid, vs);
 	}
 
+	/* 顶点布局信息在初始化的时候就会定好，见shader_init */
 	if (R->attrib_layout == 0)
 		return 0;
 
@@ -281,22 +290,24 @@ compile_link(struct render *R, struct shader *s, const char * VS, const char *FS
 	for (i=0;i<a->n;i++) {
 		struct vertex_attrib *va = &a->a[i];
 		struct attrib_layout *al = &s->a[i];
-		glBindAttribLocation(s->glid, i, va->name);
+		glBindAttribLocation(s->glid, i, va->name);	/* 关联shader中的va->name到loc(i) */
 		al->vbslot = va->vbslot;
 		al->offset = va->offset;
 		al->size = va->n;
+
+		/* TODO：根据size来判断是否normalized是否好呢？*/
 		switch (va->size) {
 		case 1:
 			al->type = GL_UNSIGNED_BYTE;
-			al->normalized = GL_TRUE;
+			al->normalized = GL_TRUE;	// color,additive
 			break;
 		case 2:
 			al->type = GL_UNSIGNED_SHORT;
-			al->normalized = GL_TRUE;
+			al->normalized = GL_TRUE;	// texcoord
 			break;
 		case 4:
 			al->type = GL_FLOAT;
-			al->normalized = GL_FALSE;
+			al->normalized = GL_FALSE;	// position
 			break;
 		default:
 			return 0;
@@ -552,7 +563,7 @@ apply_va(struct render *R) {
 			int i;
 			RID last_vb = 0;
 			int stride = 0;
-			for (i=0;i<s->n;i++) {
+			for (i=0;i<s->n;i++) { // 遍历所有顶点属性
 				struct attrib_layout *al = &s->a[i];
 				int vbidx = al->vbslot;
 				RID vb = R->vbslot[vbidx];

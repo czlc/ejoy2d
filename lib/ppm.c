@@ -227,7 +227,7 @@ loadppm(lua_State *L) {
 
 static int
 loadtexture(lua_State *L) {
-	int id = (int)luaL_checkinteger(L,1);
+	int id = (int)luaL_checkinteger(L,1);	// gtexid
 	size_t sz = 0;
 	const char * filename = luaL_checklstring(L, 2, &sz);
 	ARRAY(char, tmp, sz + 5);

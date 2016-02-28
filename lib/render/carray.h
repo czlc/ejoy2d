@@ -4,8 +4,8 @@
 struct array_node;
 
 struct array {
-	int n;
-	int sz;
+	int n;	// node count
+	int sz;	// node size
 	char * buffer;
 	struct array_node * freelist;
 };

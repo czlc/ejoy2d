@@ -6,10 +6,10 @@
 struct texture {
 	int width;
 	int height;
-	float invw;
+	float invw;	// 用于像素到uv的转换
 	float invh;
-	RID id;
-	RID fb; /// rt 's frame buffer
+	RID id;	// otexid
+	RID fb; // rt 对应的frame buffer
 };
 
 struct texture_pool {
@@ -66,6 +66,7 @@ texture_downsample(enum TEXTURE_FORMAT type, int *width, int *height, void *buff
 	*height = h/2;
 }
 
+// id 是 gtexid
 const char * 
 texture_load(int id, enum TEXTURE_FORMAT pixel_format, int pixel_width, int pixel_height, void *data, int downsample) {
 	if (id >= MAX_TEXTURE) {
@@ -130,6 +131,7 @@ texture_active_rt(int id) {
 	return NULL;
 }
 
+// 像素坐标转换到贴图坐标
 int
 texture_coord(int id, float x, float y, uint16_t *u, uint16_t *v) {
 	if (id < 0 || id >= POOL.count) {
