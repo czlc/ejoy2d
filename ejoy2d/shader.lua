@@ -285,6 +285,7 @@ shader.blend = s.blend
 shader.clear = s.clear
 shader.texture = s.shader_texture
 
+-- 根据prog的名字得到模板id
 function shader.id(name)
 	local id = assert(shader_name[name] , "Invalid shader name " .. name)
 	return id
@@ -292,6 +293,8 @@ end
 
 local uniform_set = s.uniform_set
 
+-- 返回一个table，其中每一项都是一个uniform name 为key的function，通过调用这个
+-- 函数可以设置uniform的值，这也就是用户角度看到的shader对象了
 local function create_shader(id, uniform)
 	if uniform then
 		local s = {}
@@ -309,6 +312,9 @@ end
 local material_setuniform = s.material_setuniform
 local material_settexture = s.material_settexture
 
+-- 根据id指定的prog生成一个带__index的的metatable，通过它可以方便设置material的uniform和texture
+-- metatable主要给sprite用
+-- id 为shader 模板id
 local function material_meta(id, arg)
 	local uniform = arg.uniform or arg
 	local meta
@@ -318,7 +324,7 @@ local function material_meta(id, arg)
 		for index , u in ipairs(uniform) do
 			local loc = index-1
 			index_table[u.name] = function(self, ...)
-				material_setuniform(self.__obj, loc, ...)
+				material_setuniform(self.__obj, loc, ...) -- __obj是material这个userdata
 			end
 		end
 		if arg.texture then
@@ -358,6 +364,11 @@ function shader.init()
 	shader.gui_edge_material:inv_pmv(1.0,0,0,0,  0,1.0,0,0, 0,0,1.0,0, 0,0,0,1.0)
 end
 
+-- 载入一个用户自定义program
+-- arg.name			: shader name
+-- arg.vs, arg.fs	: shader 脚本内容
+-- arg.texture		: sampler2D name table
+-- arg.uniform		:
 function shader.define( arg )
 	local name = assert(arg.name)
 	local id = shader_name[name]
@@ -375,7 +386,7 @@ function shader.define( arg )
 	local uniform = arg.uniform
 	if uniform then
 		for _,v in ipairs(uniform) do
-			v.type = assert(uniform_format[v.type])
+			v.type = assert(uniform_format[v.type]) -- 字符串转枚举
 		end
 		s.uniform_bind(id, uniform)
 	end
@@ -387,6 +398,7 @@ function shader.define( arg )
 	return r
 end
 
+-- 返回指定prog的material的metatable，通过这个metatable，可以修改material的uniform和texture
 function shader.material_meta(prog)
 	return shader_material[prog]
 end

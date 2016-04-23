@@ -29,7 +29,7 @@
 
 
 #define MAX_VB_SLOT 8
-#define MAX_ATTRIB 16				/* 顶点layout上限 */
+#define MAX_ATTRIB 16				/* 顶点attrib count上限 */
 #define MAX_TEXTURE 8
 #define CHANGE_VERTEXARRAY 0x1
 #define CHANGE_TEXTURE 0x2
@@ -43,7 +43,7 @@
 //#define CHECK_GL_ERROR assert(check_opengl_error());
 #define CHECK_GL_ERROR check_opengl_error_debug((struct render *)R, __FILE__, __LINE__);
 
-// buffer 对象，用于描述opengl 的buffer对象
+// buffer 对象，用于顶点或者索引
 struct buffer {
 	GLuint glid;	// glGenBuffers返回的id
 	GLenum gltype;	// buffer类型
@@ -59,7 +59,7 @@ struct attrib {
 
 // render target 对象
 struct target {
-	GLuint glid;
+	GLuint glid;	/* framebuffer */
 	RID tex;
 };
 
@@ -74,7 +74,7 @@ struct texture {
 	int memsize;
 };
 
-/* 顶点单个attrib layout，这个结构大部分数据是来自struct vertex_attrib，方便link之前调用glVertexAttribPointer */
+/* 辅助结构顶点单个attrib layout，这个结构大部分数据是来自struct vertex_attrib，方便调用glVertexAttribPointer */
 struct attrib_layout {
 	int vbslot;					/* 见struct vertex_attrib vbslot */
 	GLint size;					/* item count，比如color为4 */
@@ -113,15 +113,15 @@ struct rstate {
 struct render {
 	uint32_t changeflag;			// 渲染状态modify标记，每个位代表不同的渲染状态是否修改
 	RID attrib_layout;				// vertex attribute 在数组(attrib)中的位置
-	RID vbslot[MAX_VB_SLOT];		// vertex buffer 索引数组，最多可以存在MAX_VB_SLOT个vertex buffer
-	RID indexbuffer;
+	RID vbslot[MAX_VB_SLOT];		// vertex buffer 数组
+	RID indexbuffer;				// index buffer
 	RID program;					// 当前绑定的shader对象索引
 	GLint default_framebuffer;		// for restore
 	struct rstate current;			// 当前渲染状态
 	struct rstate last;				// 之前渲染状态
 	struct log log;
-	struct array buffer;			// item 为 一个buffer对象的封装
-	struct array attrib;			// item 为 某种顶点layout的描述
+	struct array buffer;			// 顶点缓冲或者索引缓存数组
+	struct array attrib;			// 一类顶点的属性集合的数组
 	struct array target;
 	struct array texture;
 	struct array shader;
@@ -214,6 +214,9 @@ render_register_vertexlayout(struct render *R, int n, struct vertex_attrib * att
 	return id;
 }
 
+/*
+** 创建并编译一段vs或者fs脚本
+*/
 static GLuint
 compile(struct render *R, const char * source, int type) {
 	GLint status;
@@ -264,6 +267,7 @@ link(struct render *R, GLuint prog) {
 
 static int
 compile_link(struct render *R, struct shader *s, const char * VS, const char *FS) {
+	/* 创建并编译fs */
 	GLuint fs = compile(R, FS, GL_FRAGMENT_SHADER);
 	if (fs == 0) {
 		log_printf(&R->log, "Can't compile fragment shader");
@@ -271,7 +275,7 @@ compile_link(struct render *R, struct shader *s, const char * VS, const char *FS
 	} else {
 		glAttachShader(s->glid, fs);
 	}
-	
+	/* 创建并编译vs */
 	GLuint vs = compile(R, VS, GL_VERTEX_SHADER);
 	if (vs == 0) {
 		log_printf(&R->log, "Can't compile vertex shader");
@@ -284,6 +288,7 @@ compile_link(struct render *R, struct shader *s, const char * VS, const char *FS
 	if (R->attrib_layout == 0)
 		return 0;
 
+	/* 关联顶点attribute */
 	struct attrib * a = (struct attrib *)array_ref(&R->attrib, R->attrib_layout);
 	s->n = a->n;
 	int i;
@@ -434,6 +439,7 @@ render_set(struct render *R, enum RENDER_OBJ what, RID id, int slot) {
 		R->attrib_layout = id;
 		break;
 	case TEXTURE:
+		// slot 是纹理通道 channel
 		assert(slot >= 0 && slot < MAX_TEXTURE);
 		R->current.texture[slot] = id;
 		R->changeflag |= CHANGE_TEXTURE;
@@ -567,7 +573,7 @@ apply_va(struct render *R) {
 				struct attrib_layout *al = &s->a[i];
 				int vbidx = al->vbslot;
 				RID vb = R->vbslot[vbidx];
-				if (last_vb != vb) {
+				if (last_vb != vb) { /* 支持struct of array(不同属性放在不同缓存中) */
 					struct buffer * buf = (struct buffer *)array_ref(&R->buffer, vb);
 					if (buf == NULL) {
 						continue;
@@ -652,6 +658,7 @@ bind_texture(struct render *R, struct texture * tex, int slice, GLenum *type, in
 		*type = GL_TEXTURE_CUBE_MAP;
 		*target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + slice;
 	}
+	/* Q:liuchang 为啥要设置一个7? */
 	glActiveTexture( GL_TEXTURE7 );
 	R->changeflag |= CHANGE_TEXTURE;
 	R->last.texture[7] = 0;	// use last texture slot

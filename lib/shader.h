@@ -20,20 +20,31 @@ struct material;
 
 void shader_init();
 /* 
-	desc:编译指定id 的 program
-	prog:program
-	texture_uniform_name:uniform sampler2D 的名字列表
+** 编译指定id 的 program
+** prog: program id
+** texture:sampler2D count
+** texture_uniform_name:uniform sampler2D 的名字列表
 */
 void shader_load(int prog, const char *fs, const char *vs, int texture, const char ** texture_uniform_name);
 void shader_unload();
 void shader_blend(int m1,int m2);
 void shader_defaultblend();
+/*
+** 改变某个通道的纹理
+** id 为 texture的RID
+*/
 void shader_texture(int id, int channel);
+/*
+** 绘制一个quad
+*/
 void shader_draw(const struct vertex_pack vb[4],uint32_t color,uint32_t additive);
+/*
+** 绘制一个多边形
+*/
 void shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive, int qn, uint16_t *quad);
 /* 
-	desc:设置当前prog和material，通常是绘制sprite的时候由sprite带来
-	n:program template id
+** 设置当前program和material，通常是绘制sprite的时候由sprite带来
+** n:program template id
 */
 void shader_program(int n, struct material *);
 void shader_flush();

@@ -258,6 +258,7 @@ self(lua_State *L) {
 	return s;
 }
 
+/* 获得sprite(index处)的uservalue */
 static void
 get_reftable(lua_State *L, int index) {
 	lua_getuservalue(L, index);
@@ -1471,10 +1472,10 @@ lnewmaterial(lua_State *L) {
 		void * m = lua_newuserdata(L, sz); // sprite, uservalue, table, matertial
 		s->material = (struct material*)m;
 		material_init(m, sz, s->t.program);
-		lua_setfield(L, -2, "__obj");
+		lua_setfield(L, -2, "__obj"); // table[__obj] = matertial
 
 		lua_pushvalue(L, -1);	// sprite, uservalue, table, table
-		lua_setfield(L, -3, "material");
+		lua_setfield(L, -3, "material"); // uservalue["material"] = table
 		lua_pushinteger(L, s->t.program);
 
 		return 2;	// return table, program

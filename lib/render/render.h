@@ -15,8 +15,9 @@ struct render_init_args {
 	int max_shader;
 };
 
+/* 顶点的一个attrib */
 struct vertex_attrib {
-	const char * name;	/* attrib name */
+	const char * name;	/* attrib name和shader脚本中的对应 */
 	int vbslot;			/* 顶点attrib对应的buffer
 						   对应于struct render.vbslot[vbslot]，得到RID再到buffer array中去找具体的buffer数据
 						   之所以不直接存RID而是多一个间接的render.vbslot[vbslot]是因为考虑到每一个slot都有意义
@@ -30,7 +31,7 @@ struct shader_init_args {
 	const char * vs;
 	const char * fs;
 	int texture;					/* texture_uniform count */
-	const char **texture_uniform;
+	const char **texture_uniform;	/* 脚本中sample名字 */
 };
 
 enum RENDER_OBJ {
@@ -113,56 +114,63 @@ enum CULL_MODE {
 	CULL_BACK,
 };
 
-/*
-	desc:返回opengl版本
-*/
 int render_version(struct render *R);
 int render_size(struct render_init_args *args);
 struct render * render_init(struct render_init_args *args, void * buffer, int sz);
 void render_exit(struct render * R);
 
+/*
+** Q:liuchang 
+*/
 void render_set(struct render *R, enum RENDER_OBJ what, RID id, int slot);
 void render_release(struct render *R, enum RENDER_OBJ what, RID id);
 
-/*
-	desc:注册一组vertex attrib
-*/
+/* 记录一类顶点的attrib信息 */
 RID render_register_vertexlayout(struct render *R, int n, struct vertex_attrib * attrib);
 
 /*
-	desc:创建顶点或索引buffer对象
-	what:VERTEXBUFFER or INDEXBUFFER
-	data:初始数据
-	n:item count
-	stride:item size
+** 创建顶点或者索引缓存
+**	what:VERTEXBUFFER or INDEXBUFFER
+**	data:初始数据
+**	n:item count
+**	stride:item size，一个顶点sizeof(struct vertex)或者索引sizeof(uint16_t)的大小
 */
 RID render_buffer_create(struct render *R, enum RENDER_OBJ what, const void *data, int n, int stride);
+/*
+** 更新顶点或者索引缓存
+*/
 void render_buffer_update(struct render *R, RID id, const void * data, int n);
 
 /*
-	desc:创建一个纹理对象
+** 创建一个纹理对象
 */
 RID render_texture_create(struct render *R, int width, int height, enum TEXTURE_FORMAT format, enum TEXTURE_TYPE type, int mipmap);
+/*
+** 填充纹理数据
+*/
 void render_texture_update(struct render *R, RID id, int width, int height, const void *pixels, int slice, int miplevel);
 // subupdate only support slice 0, miplevel 0
 void render_texture_subupdate(struct render *R, RID id, const void *pixels, int x, int y, int w, int h);
 
+/*
+** 创建一个渲染目标(attach texture)
+*/
 RID render_target_create(struct render *R, int width, int height, enum TEXTURE_FORMAT format);
 // render_release TARGET would not release the texture attachment
 RID render_target_texture(struct render *R, RID rt);
 
 /*
-	desc:创建一个shader对象
-	args:shader参数，包扩vs,fs,sampler2D列表
-	returen:shader对象的paid
+** 创建一个program对象
 */
 RID render_shader_create(struct render *R, struct shader_init_args *args);
-
-/* desc:bind当前shader对象 */
 void render_shader_bind(struct render *R, RID id);
-/* desc:获得uniform "name"的local */
+/*
+**获得获得uniform的location(id)
+*/
 int render_shader_locuniform(struct render *R, const char * name);
-/* desc:设置loc处uniform的值 */
+/*
+** 设置location指定的uniform的值
+*/
 void render_shader_setuniform(struct render *R, int loc, enum UNIFORM_FORMAT format, const float *v);
 
 void render_setviewport(struct render *R, int x, int y, int width, int height );

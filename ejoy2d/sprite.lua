@@ -18,6 +18,8 @@ local get = c.get
 local set = c.set
 
 local get_material = get.material
+-- 获得sprite的material，没有的话就创建一个
+-- material是一个table，下面有__obj成员指向material的userdata
 function get:material()
 	local m = get_material(self)
 	if m == nil then
@@ -27,7 +29,7 @@ function get:material()
 			return
 		end
 		local meta = shader.material_meta(prog)
-		setmetatable(m, meta)
+		setmetatable(m, meta) -- 之后m:uname(...)可以设置material中的uniform, m:texture(...)可以设置material中的texture
 	end
 
 	return m

@@ -29,7 +29,7 @@
 
 struct uniform {
 	int loc;
-	int offset;					/* 此uniform数据在program.uniform_value中的byte偏移量 */
+	int offset;					/* 此uniform数据在缓存(program.uniform_value or material.uniform)中的偏移量 */
 	enum UNIFORM_FORMAT type;
 };
 
@@ -52,8 +52,8 @@ struct render_state {
 	RID tex[MAX_TEXTURE_CHANNEL];			// 每个channel 相当于一支独立的笔
 	int blendchange;						// 混合参数改变不再是默认值
 	int drawcall;
-	RID vertex_buffer;						// vertex buffer在数组(render.buffer)中的位置
-	RID index_buffer;						// index buffer在数组(render.buffer)中的位置
+	RID vertex_buffer;
+	RID index_buffer;						// index buffer
 	RID layout;								// vertex attribute 在数组(render.attrib)中的位置
 	struct render_buffer vb;
 };
@@ -113,7 +113,7 @@ shader_init() {
 	rs->layout = render_register_vertexlayout(rs->R, sizeof(va)/sizeof(va[0]), va);
 	render_set(rs->R, VERTEXLAYOUT, rs->layout, 0);
 	render_set(rs->R, INDEXBUFFER, rs->index_buffer, 0);
-	render_set(rs->R, VERTEXBUFFER, rs->vertex_buffer, 0);
+	render_set(rs->R, VERTEXBUFFER, rs->vertex_buffer, 0); /* 使用0号slot */
 
 	RS = rs;
 }
@@ -142,7 +142,7 @@ program_init(struct program * p, const char *FS, const char *VS, int texture, co
 	args.texture = texture;
 	args.texture_uniform = texture_uniform_name;
 	p->prog = render_shader_create(R, &args);
- 	render_shader_bind(R, p->prog); /* TODO:这2句似乎没什么意义? */
+ 	render_shader_bind(R, p->prog); /* Q:liuchang 这2句似乎没什么意义? */
  	render_shader_bind(R, 0);
 }
 
@@ -269,7 +269,7 @@ apply_uniform(struct program *p) {
 void
 shader_program(int n, struct material *m) {
 	struct program *p = &RS->program[n];
-	if (RS->current_program != n || p->reset_uniform || m) {	/*m 是每个sprite都不同，所以一旦有m就要提交一次, TODO:能否共享m? */
+	if (RS->current_program != n || p->reset_uniform || m) {	/* Q:liuchang 带有m的相同的spr多次绘制也会每次commit，效率不高 */
 		rs_commit();
 	}
 	/* 先应用全局uniform，如果sprite的material也有自己的uniform再覆盖 */
@@ -351,6 +351,7 @@ shader_defaultblend() {
 void
 shader_blend(int m1, int m2) {
 	if (m1 != BLEND_GL_ONE || m2 != BLEND_GL_ONE_MINUS_SRC_ALPHA) {
+		// 变回来得用shader_defaultblend，否则有问题
 		rs_commit();
 		RS->blendchange = 1;
 		enum BLEND_FORMAT src = blend_mode(m1);
@@ -423,7 +424,7 @@ shader_adduniform(int prog, const char * name, enum UNIFORM_FORMAT t) {
 	shader_program(prog, NULL);
 	struct program * p = &RS->program[prog];
 	assert(p->uniform_number < MAX_UNIFORM);
-	int loc = render_shader_locuniform(RS->R, name);
+	int loc = render_shader_locuniform(RS->R, name); // 获得uniform location
 	int index = p->uniform_number++;
 	struct uniform * u = &p->uniform[index];
 	u->loc = loc;
@@ -448,6 +449,7 @@ struct material {
 	float uniform[1];					/* 存储uniform数据 */
 };
 
+/* 获得一个prog对应material的大小，因为prog定了，uniform也就定下来了，能通过material修改的也有限*/
 int 
 material_size(int prog) {
 	if (prog < 0 || prog >= MAX_PROGRAM)

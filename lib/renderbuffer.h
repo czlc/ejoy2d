@@ -24,7 +24,7 @@ struct quad {
 };
 
 struct render_buffer {
-	int object;		// 将要绘制的object count
+	int object;		// 本帧已经填充的的quad数量
 	int texid;		// current texture
 	RID vbid;		// vertex buffer
 	struct quad vb[MAX_COMMBINE];
