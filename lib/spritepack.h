@@ -97,6 +97,7 @@ struct sprite_trans_data {
 
 #define SIZEOF_TRANS (sizeof(struct sprite_trans_data))
 
+/* 某一帧的某个组件 */
 struct pack_part {
 	struct sprite_trans_data t;
 	int16_t component_id;

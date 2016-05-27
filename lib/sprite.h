@@ -22,7 +22,7 @@ struct anchor_data {
 };
 
 struct sprite {
-	struct sprite * parent;
+	struct sprite * parent;						/* 父节点 */
 	struct sprite_pack * pack;
 	uint16_t type;
 	uint16_t id;
@@ -40,10 +40,10 @@ struct sprite {
 	int total_frame;
 	int frame;
 	int flags;
-	const char *name;	// name for parent
+	const char *name;							/* 在父节点中的名字 */
 	struct material *material;
 	union {
-		struct sprite * children[1];
+		struct sprite * children[1];			/* animaton 的子节点 */
 		struct rich_text * rich_text;
 		int scissor;
 		struct anchor_data *anchor;

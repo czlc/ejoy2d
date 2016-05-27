@@ -77,12 +77,12 @@ end
 
 function sprite_meta.__newindex(spr, key, v)
 	local setter = set[key]
-	if setter then
+	if setter then	-- 先看是不是设置某个属性
 		setter(spr, v)
 		return
 	end
 	assert(debug.getmetatable(v) == sprite_meta, "Need a sprite")
-	method.mount(spr, key, v)
+	method.mount(spr, key, v)	-- 挂接到父结点下
 end
 
 local get_parent = get.parent

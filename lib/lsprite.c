@@ -107,6 +107,9 @@ readkey(lua_State *L, int idx, int key, double def) {
 	return ret;
 }
 
+/*
+** 将idx处的table取出来填充srt
+*/
 static void
 fill_srt(lua_State *L, struct srt *srt, int idx) {
 	if (lua_isnoneornil(L, idx)) {
@@ -137,6 +140,7 @@ fill_srt(lua_State *L, struct srt *srt, int idx) {
 	srt->rot = rot * (EJMAT_R_FACTOR / 360.0);
 }
 
+/* srt的各种key */
 static const char * srt_key[] = {
 	"x",
 	"y",
@@ -209,7 +213,7 @@ newsprite(lua_State *L, struct sprite_pack *pack, int id) {
 		int childid = sprite_component(s, i);
 		if (childid < 0)
 			break;
-		if (i==0) {
+		if (i==0) { /* 第一次进入为sprite 对于第一次 */
 			luaL_checkstack(L, 2, "lua stack overflow");
 			lua_newtable(L);
 			lua_pushvalue(L,-1);
@@ -1174,6 +1178,9 @@ lookup(lua_State *L, struct sprite * spr) {
 	return NULL;
 }
 
+/*
+** 得到spr距离root的层数，并将每一层的spr压入栈中，最接近root的在栈顶
+*/
 static int
 unwind(lua_State *L, struct sprite *root, struct sprite *spr) {
 	int n = 0;
@@ -1352,6 +1359,9 @@ lget_pic_tex_coord(lua_State *L) {
 	return 8;
 }
 
+/*
+** 新建一个table，将以下函数设置其中
+*/
 static void
 lmethod(lua_State *L) {
 	luaL_Reg l[] = {
@@ -1386,7 +1396,7 @@ lmethod(lua_State *L) {
 		{ "pic_tex_coord", lget_pic_tex_coord },
 		{ NULL, NULL, },
 	};
-	luaL_setfuncs(L,l2,nk);
+	luaL_setfuncs(L,l2,nk);	/* l2压入之前newlib出来的table，nk是upvalue个数，之后会弹出 */
 }
 
 struct dummy_pack {
@@ -1719,16 +1729,16 @@ ejoy2d_sprite(lua_State *L) {
 		{ "enable_visible_test", lenable_visible_test },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L,l);						/* t */
 
 	lmethod(L);
-	lua_setfield(L, -2, "method");
+	lua_setfield(L, -2, "method");			/* t.method = {xxx} sprite下的方法 */
 	lgetter(L);
-	lua_setfield(L, -2, "get");
+	lua_setfield(L, -2, "get");				/* t.get = {xxx} */
 	lsetter(L);
-	lua_setfield(L, -2, "set");
+	lua_setfield(L, -2, "set");				/* t.set = {xxx}*/
 	ldfont_mothod(L);
-	lua_setfield(L, -2, "dfont_method");
+	lua_setfield(L, -2, "dfont_method");	/* t.dfont_method = {xxx} */
 
 	return 1;
 }

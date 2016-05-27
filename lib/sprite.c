@@ -198,6 +198,9 @@ sprite_init(struct sprite * s, struct sprite_pack * pack, int id, int sz) {
 	}
 }
 
+/*
+** 关联子节点和父节点
+*/
 void
 sprite_mount(struct sprite *parent, int index, struct sprite *child) {
 	assert(parent->type == TYPE_ANIMATION);
@@ -913,6 +916,11 @@ test_pannel(struct pack_pannel *pannel, int x, int y) {
 
 static int test_child(struct sprite *s, struct srt *srt, struct matrix * ts, int x, int y, struct sprite ** touch);
 
+/*
+** 返回值表示如果点击到的某个sprite(通过touch返回)此sprite是否接受消息(touchable)
+** 另一个返回值touch 表示被点击到的sprite或者sub sprite，它不管是否sprite被设置为
+** touchable
+*/
 static int
 check_child(struct sprite *s, struct srt *srt, struct matrix * t, struct pack_frame * pf, int i, int x, int y, struct sprite ** touch) {
 	struct pack_part *pp = OFFSET_TO_POINTER(struct pack_part, s->pack, pf->part);
@@ -990,6 +998,11 @@ test_animation(struct sprite *s, struct srt *srt, struct matrix * t, int x, int 
 	return 0;
 }
 
+/*
+** 返回值表示如果点击到了某个sprite(通过touch返回)此sprite是否接受消息(touchable)
+** 另一个返回值touch 表示被点击到的sprite或者sub sprite，它不管是否sprite被设置为
+** touchable
+*/
 static int
 test_child(struct sprite *s, struct srt *srt, struct matrix * ts, int x, int y, struct sprite ** touch) {
 	struct matrix temp;
@@ -1065,10 +1078,10 @@ struct sprite *
 sprite_test(struct sprite *s, struct srt *srt, int x, int y) {
 	struct sprite *tmp = NULL;
 	int testin = test_child(s, srt, NULL, x, y, &tmp);
-	if (testin) {
+	if (testin) { /* 如果tmp可以接收消息则直接返回子节点 tmp */
 		return tmp;
 	}
-	if (tmp) {
+	if (tmp) { /* 如果tmp不能接收消息，但被点中了，则返回父节点 s*/
 		return s;
 	}
 	return NULL;
