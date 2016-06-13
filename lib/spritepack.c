@@ -644,7 +644,7 @@ lanimation_size(lua_State *L) {
 static int
 lpart_size(lua_State *L) {
 	int size;
-	int vn = (int)luaL_checkinteger(L, 2);
+	int vn = (int)lua_tointeger(L, 2);
 	if (lua_istable(L,1)) {
 		size = SIZEOF_PART + SIZEOF_MATRIX;
 	} else if (vn) {
