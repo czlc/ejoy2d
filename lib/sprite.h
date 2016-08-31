@@ -26,16 +26,16 @@ struct sprite {
 	struct sprite_pack * pack;
 	uint16_t type;
 	uint16_t id;
-	struct sprite_trans t;
+	struct sprite_trans t;						/* 动态设置的变换:spr->ps, sr...，其中的mat实际上是指向下面的sprite.mat */
 	union {
 		struct pack_animation *ani;
 		struct pack_picture *pic;
 		struct pack_polygon_data *poly;
 		struct pack_label *label;
 		struct pack_pannel *pannel;
-		struct matrix *mat;
+		struct matrix *mat;						/* anchor，指向下面data.anchor.mat，new的时候指定 */
 	} s;
-	struct matrix mat;
+	struct matrix mat;							/* 上面t.mat所指向的，表示动态变换 */
 	int start_frame;
 	int total_frame;
 	int frame;

@@ -306,32 +306,14 @@ draw_quad(const struct vertex_pack *vbp, uint32_t color, uint32_t additive, int 
 	shader_draw(vb, color, additive);
 }
 
-static void
-draw_quad2(const struct vertex_pack *vbp, uint32_t color, uint32_t additive, uint16_t *quad) {
-	struct vertex_pack vb[4];
-	vb[0] = vbp[*quad];
-	vb[1] = vbp[*(quad+1)];
-	vb[2] = vbp[*(quad+2)];
-	vb[3] = vbp[*(quad+3)];
-	shader_draw(vb, color, additive);
-}
-
 void
-shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive, int qn, uint16_t *quad) {
-	if (qn) {
-		int i = 0;
-		do {
-			draw_quad2(vb, color, additive, quad+i*4);
-			++i;
-		} while (i < qn);
-	} else {
-		int i = 0;
-		--n;
-		do {
-			draw_quad(vb, color, additive, n, i);
-			i+=2;
-		} while (i<n-1);
-	}
+shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive) {
+	int i = 0;
+	--n;
+	do {
+		draw_quad(vb, color, additive, n, i);
+		i+=2;
+	} while (i<n-1);
 }
 
 void 
@@ -447,6 +429,7 @@ struct material {
 	int texture[MAX_TEXTURE_CHANNEL];	/* 保存的是gtexid */
 	bool uniform_enable[MAX_UNIFORM];	/* 记录material中哪些uniform是有效的 */
 	float uniform[1];					/* 存储uniform数据 */
+	bool reset;
 };
 
 /* 获得一个prog对应material的大小，因为prog定了，uniform也就定下来了，能通过material修改的也有限*/
@@ -471,6 +454,7 @@ material_init(void *self, int size, int prog) {
 	memset(self, 0, rsz);
 	struct material * m = (struct material *)self;
 	m->p = p;
+	m->reset = false;
 	int i;
 	for (i=0;i<MAX_TEXTURE_CHANNEL;i++) {
 		m->texture[i] = -1;
@@ -490,6 +474,7 @@ material_setuniform(struct material *m, int index, int n, const float *v) {
 	}
 	memcpy(m->uniform + u->offset, v, n * sizeof(float));
 	m->uniform_enable[index] = true;
+	m->reset = true;
 	return 0;
 }
 
@@ -498,9 +483,10 @@ material_apply(int prog, struct material *m) {
 	struct program * p = m->p;
 	if (p != &RS->program[prog])
 		return;
-	if (p->material == m) {
+	if (p->material == m && !m->reset) {
 		return;
 	}
+	m->reset = false;
 	p->material = m;
 	p->reset_uniform = true;
 	int i;
@@ -529,5 +515,6 @@ material_settexture(struct material *m, int channel, int texture) {
 		return 1;
 	}
 	m->texture[channel] = texture;
+	m->reset = true;
 	return 0;
 }

@@ -41,7 +41,7 @@ void shader_draw(const struct vertex_pack vb[4],uint32_t color,uint32_t additive
 /*
 ** 绘制一个多边形
 */
-void shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive, int qn, uint16_t *quad);
+void shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive);
 /* 
 ** 设置当前program和material，通常是绘制sprite的时候由sprite带来
 ** n:program template id

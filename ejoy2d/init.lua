@@ -1,4 +1,3 @@
---
 local shader = require "ejoy2d.shader"
 local fw = require "ejoy2d.framework"
 

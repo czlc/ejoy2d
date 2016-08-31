@@ -46,7 +46,6 @@ local function pack_polygon(src, ret)
 	table.insert(ret, pack.byte(n))
 	local maxid = 0
 	local total_point = 0
-	local total_quad = 0
 	for i=1,n do
 		local data = src[i]
 		local texid = (data.tex or 1) - 1
@@ -62,19 +61,11 @@ local function pack_polygon(src, ret)
 			table.insert(ret, pack.word(data.src[j]))
 		end
 		for j=1,pn do
-			table.insert(ret, pack.int16(data.screen[j]))
-		end
-
-		local qn = #data.quad
-		total_quad = total_quad + qn
-		assert(qn % 4 == 0, qn)
-		table.insert(ret, pack.byte(qn/4))
-		for j=1,qn do
-			table.insert(ret, pack.word(data.quad[j]))
+			table.insert(ret, pack.int32(data.screen[j]))
 		end
 	end
 
-	return pack.polygon_size(n, total_point/2, total_quad/4) , maxid
+	return pack.polygon_size(n, total_point) , maxid
 end
 
 local function is_identity( mat )
@@ -105,9 +96,6 @@ local function pack_part(data, ret)
 				tag = tag .. "m"
 			end
 		end
-		if data.vertex and #data.vertex ~= 0 then
-			tag = tag.."v"
-		end
 		if data.color and data.color ~= 0xffffffff then
 			tag = tag .. "c"
 		end
@@ -128,14 +116,6 @@ local function pack_part(data, ret)
 					table.insert(ret, pack.int32(mat[i]))
 				end
 			end
-		else
-			if data.vertex and #data.vertex ~= 0 then
-				assert(#data.vertex < 256)
-				table.insert(ret, pack.word(#data.vertex/2))
-				for i=1,#data.vertex do
-					table.insert(ret, pack.int16(data.vertex[i]))
-				end
-			end
 		end
 		if data.color and data.color ~= 0xffffffff then
 			table.insert(ret, pack.color(data.color))
@@ -146,7 +126,7 @@ local function pack_part(data, ret)
 		if data.touch then
 			table.insert(ret, pack.word(1))
 		end
-		return pack.part_size(mat, data.vertex and #data.vertex or 0)
+		return pack.part_size(mat)
 	end
 end
 
