@@ -21,7 +21,6 @@
 #define TAG_MATRIX 8
 #define TAG_TOUCH 16
 #define TAG_MATRIXREF 32
-#define TAG_VERTEX 64
 
 #ifndef EXPORT_EP
 
@@ -158,7 +157,7 @@ import_polygon(struct import_stream *is) {
 		p->texid = get_texid(is, texid);
 		p->n = import_byte(is);
 		uv_t * tc = (uv_t *)ialloc(is->alloc, p->n * 2 * sizeof(uv_t));
-		int16_t * sc = (int16_t *)ialloc(is->alloc, p->n * 2 * sizeof(int16_t));
+		int32_t * sc = (int32_t *)ialloc(is->alloc, p->n * 2 * sizeof(uint32_t));
 		p->texture_coord = POINTER_TO_OFFSET(is->pack, tc);
 		p->screen_coord = POINTER_TO_OFFSET(is->pack, sc);
 		for (j=0;j<p->n*2;j+=2) {
@@ -168,13 +167,7 @@ import_polygon(struct import_stream *is) {
 			texture_coord(p->texid, x, y, &tc[j], &tc[j+1]);
 		}
 		for (j=0;j<p->n*2;j++) {
-			sc[j] = import_word(is);
-		}
-		p->qn = import_byte(is);
-		int16_t *q = (int16_t *)ialloc(is->alloc, p->qn * 4 * sizeof(uint16_t));
-		p->quad = POINTER_TO_OFFSET(is->pack, q);
-		for (j=0;j<p->qn*4;j++) {
-			q[j] = import_word(is);
+			sc[j] = import_int32(is);
 		}
 	}
 }
@@ -200,7 +193,7 @@ import_string(struct import_stream *is) {
 static void
 import_frame(struct pack_frame * pf, struct import_stream *is, int maxc) {
 	int n = import_word(is);
-	int i,j;
+	int i;
 	struct pack_part * part = (struct pack_part *)ialloc(is->alloc, n * SIZEOF_PART);
 	pf->part = POINTER_TO_OFFSET(is->pack, part);
 	pf->n = n;
@@ -215,9 +208,6 @@ import_frame(struct pack_frame * pf, struct import_stream *is, int maxc) {
 		} else {
 			luaL_error(is->alloc->L, "Invalid stream (%d): frame part need an id", is->current_id);
 		}
-		pp->t.mat = 0;
-		pp->t.vertex = 0;
-		pp->t.vn = 0;
 		if (tag & TAG_MATRIX) {
 			struct matrix *mat = (struct matrix *)ialloc(is->alloc, SIZEOF_MATRIX);
 			pp->t.mat = POINTER_TO_OFFSET(is->pack, mat);
@@ -232,15 +222,8 @@ import_frame(struct pack_frame * pf, struct import_stream *is, int maxc) {
 				luaL_error(is->alloc->L, "Invalid stream (%d): no martix ref %d", is->current_id, ref);
 			}
 			pp->t.mat = POINTER_TO_OFFSET(is->pack, &is->matrix[ref]);
-		} else if (tag & TAG_VERTEX) {
-			pp->t.vn = import_word(is);
-			if (pp->t.vn > 0) {
-				int16_t * ver = (int16_t *)ialloc(is->alloc, pp->t.vn * 2 * sizeof(uint16_t));
-				pp->t.vertex = POINTER_TO_OFFSET(is->pack, ver);
-				for (j=0;j<pp->t.vn*2;j++) {
-					ver[j] = import_word(is);
-				}
-			}
+		} else {
+			pp->t.mat = 0;
 		}
 		if (tag & TAG_COLOR) {
 			pp->t.color = import_color(is);
@@ -502,17 +485,6 @@ lpackint32(lua_State *L) {
 }
 
 static int
-lpackint16(lua_State *L) {
-	int n = (int)readinteger(L, 1);
-	uint8_t buf[2] = {
-		(uint8_t)n&0xff ,
-		(uint8_t)((n>>8) & 0xff) ,
-	};
-	lua_pushlstring(L, (char *)buf, 2);
-	return 1;
-}
-
-static int
 lpackcolor(lua_State *L) {
 	uint32_t n = luaL_checkinteger(L,1);
 
@@ -570,9 +542,6 @@ lpackframetag(lua_State *L) {
 		case 'M':
 			tag |= TAG_MATRIXREF;
 			break;
-		case 'v':
-			tag |= TAG_VERTEX;
-			break;
 		default:
 			return luaL_error(L, "Invalid tag %s", tagstr);
 			break;
@@ -595,11 +564,9 @@ static int
 lpolygon_size(lua_State *L) {
 	int n = (int)luaL_checkinteger(L,1);
 	int pn = (int)luaL_checkinteger(L,2);
-	int qn = (int)luaL_checkinteger(L,3);
 	int sz = SIZEOF_POLYGON
 		+ n * SIZEOF_POLY
-		+ 8 * pn
-		+ 8 * qn;
+		+ 12 * pn;
 	lua_pushinteger(L, sz);
 	return 1;
 }
@@ -644,11 +611,8 @@ lanimation_size(lua_State *L) {
 static int
 lpart_size(lua_State *L) {
 	int size;
-	int vn = (int)luaL_checkinteger(L, 2);
 	if (lua_istable(L,1)) {
 		size = SIZEOF_PART + SIZEOF_MATRIX;
-	} else if (vn) {
-		size = SIZEOF_PART + vn * sizeof(int16_t);
 	} else {
 		size = SIZEOF_PART;
 	}
@@ -778,7 +742,6 @@ ejoy2d_spritepack(lua_State *L) {
 		{ "byte", lpackbyte },
 		{ "word", lpackword },
 		{ "int32", lpackint32 },
-		{ "int16", lpackint16 },
 		{ "color", lpackcolor },
 		{ "string", lpackstring },
 		{ "frametag", lpackframetag },

@@ -69,18 +69,11 @@ sprite_drawpolygon(struct sprite_pack *pack, struct pack_polygon_data *poly, con
 			continue;
 		shader_texture(glid, 0);
 		int pn = p->n;
-		int qn = p->qn;
 
 		ARRAY(struct vertex_pack, vb, pn);
 
 		uv_t * texture_coord = OFFSET_TO_POINTER(uv_t, pack, p->texture_coord);
-		int16_t * screen_coord = OFFSET_TO_POINTER(int16_t, pack, p->screen_coord);
-		if (arg->vn > 0) {
-			assert(arg->vn == pn);
-			screen_coord = arg->vertex;
-		}
-
-		uint16_t * quad = OFFSET_TO_POINTER(uint16_t, pack, p->quad);
+		int32_t * screen_coord = OFFSET_TO_POINTER(int32_t, pack, p->screen_coord);
 
 		for (j=0;j<pn;j++) {
 			int xx = screen_coord[j*2+0];
@@ -99,7 +92,7 @@ sprite_drawpolygon(struct sprite_pack *pack, struct pack_polygon_data *poly, con
 			vb[j].tx = tx;
 			vb[j].ty = ty;
 		}
-		shader_drawpolygon(pn, vb, arg->color, arg->additive, qn, quad);
+		shader_drawpolygon(pn, vb, arg->color, arg->additive);
 	}
 }
 
@@ -161,8 +154,6 @@ sprite_init(struct sprite * s, struct sprite_pack * pack, int id, int sz) {
 	s->t.color = 0xffffffff;
 	s->t.additive = 0;
 	s->t.program = PROGRAM_DEFAULT;
-	s->t.vertex = NULL;
-	s->t.vn = 0;
 	s->flags = 0;
 	s->name = NULL;
 	s->id = id;
@@ -371,8 +362,6 @@ sprite_trans_mul2(struct sprite_pack *pack, struct sprite_trans_data *a, struct 
 		return NULL;
 	}
 	t->mat = OFFSET_TO_POINTER(struct matrix, pack, a->mat);
-	t->vn = a->vn;
-	t->vertex = OFFSET_TO_POINTER(int16_t, pack, a->vertex);
 	t->color = a->color;
 	t->additive = a->additive;
 	t->program = PROGRAM_DEFAULT;
@@ -396,10 +385,6 @@ sprite_trans_mul(struct sprite_trans *a, struct sprite_trans *b, struct sprite_t
 	sprite_trans_mul_(b , t, tmp_matrix);
 	if (t->program == PROGRAM_DEFAULT) {
 		t->program = b->program;
-	}
-	if (t->vn == 0) {
-		t->vn = b->vn;
-		t->vertex = b->vertex;
 	}
 	return t;
 }
@@ -649,8 +634,6 @@ sprite_draw_as_child(struct sprite *s, struct srt *srt, struct matrix *mat, uint
 		st.color = color;
 		st.additive = 0;
 		st.program = PROGRAM_DEFAULT;
-		st.vertex = NULL;
-		st.vn = 0;
 		draw_child(s, srt, &st, NULL);
 	}
 }

@@ -306,32 +306,14 @@ draw_quad(const struct vertex_pack *vbp, uint32_t color, uint32_t additive, int 
 	shader_draw(vb, color, additive);
 }
 
-static void
-draw_quad2(const struct vertex_pack *vbp, uint32_t color, uint32_t additive, uint16_t *quad) {
-	struct vertex_pack vb[4];
-	vb[0] = vbp[*quad];
-	vb[1] = vbp[*(quad+1)];
-	vb[2] = vbp[*(quad+2)];
-	vb[3] = vbp[*(quad+3)];
-	shader_draw(vb, color, additive);
-}
-
 void
-shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive, int qn, uint16_t *quad) {
-	if (qn) {
-		int i = 0;
-		do {
-			draw_quad2(vb, color, additive, quad+i*4);
-			++i;
-		} while (i < qn);
-	} else {
-		int i = 0;
-		--n;
-		do {
-			draw_quad(vb, color, additive, n, i);
-			i+=2;
-		} while (i<n-1);
-	}
+shader_drawpolygon(int n, const struct vertex_pack *vb, uint32_t color, uint32_t additive) {
+	int i = 0;
+	--n;
+	do {
+		draw_quad(vb, color, additive, n, i);
+		i+=2;
+	} while (i<n-1);
 }
 
 void 

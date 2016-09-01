@@ -1,4 +1,3 @@
-/* shader 是对绘制的简单封装 */
 #ifndef EJOY_2D_SHADER_H
 #define EJOY_2D_SHADER_H
 
@@ -19,12 +18,6 @@
 struct material;
 
 void shader_init();
-/* 
-** 编译指定id 的 program
-** prog: program id
-** texture:sampler2D count
-** texture_uniform_name:uniform sampler2D 的名字列表
-*/
 void shader_load(int prog, const char *fs, const char *vs, int texture, const char ** texture_uniform_name);
 void shader_unload();
 void shader_blend(int m1,int m2);
@@ -54,17 +47,9 @@ void shader_scissortest(int enable);
 
 int ejoy2d_shader(lua_State *L);
 
-/*
-	绘制一个render_buffer，地图tile用到
-*/
 void shader_drawbuffer(struct render_buffer * rb, float x, float y, float s);
 
-/*
-	desc：载入shader中的uniform变量
-	prog:program template id，范围为[0,MAX_PROGRAM)
-*/
 int shader_adduniform(int prog, const char * name, enum UNIFORM_FORMAT t);
-/* desc:设置uniform值 */
 void shader_setuniform(int prog, int index, enum UNIFORM_FORMAT t, float *v);
 int shader_uniformsize(enum UNIFORM_FORMAT t);
 

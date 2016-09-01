@@ -91,7 +91,7 @@ ldraw(lua_State *L) {
 	if (point == 4) {
 		shader_draw(vb, color, additive);
 	} else {
-		shader_drawpolygon(point, vb, color, additive, 0, NULL);
+		shader_drawpolygon(point, vb, color, additive);
 	}
 	return 0;
 }

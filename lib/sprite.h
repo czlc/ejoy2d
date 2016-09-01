@@ -22,28 +22,28 @@ struct anchor_data {
 };
 
 struct sprite {
-	struct sprite * parent;
+	struct sprite * parent;						/* 父节点 */
 	struct sprite_pack * pack;
 	uint16_t type;
 	uint16_t id;
-	struct sprite_trans t;
+	struct sprite_trans t;						/* 动态设置的变换:spr->ps, sr...，其中的mat实际上是指向下面的sprite.mat */
 	union {
 		struct pack_animation *ani;
 		struct pack_picture *pic;
 		struct pack_polygon_data *poly;
 		struct pack_label *label;
 		struct pack_pannel *pannel;
-		struct matrix *mat;
+		struct matrix *mat;						/* anchor，指向下面data.anchor.mat，new的时候指定 */
 	} s;
-	struct matrix mat;
+	struct matrix mat;							/* 上面t.mat所指向的，表示动态变换 */
 	int start_frame;
 	int total_frame;
 	int frame;
 	int flags;
-	const char *name;	// name for parent
+	const char *name;							/* 在父节点中的名字 */
 	struct material *material;
 	union {
-		struct sprite * children[1];
+		struct sprite * children[1];			/* animaton 的子节点 */
 		struct rich_text * rich_text;
 		int scissor;
 		struct anchor_data *anchor;
