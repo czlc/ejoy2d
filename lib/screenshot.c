@@ -26,6 +26,8 @@ _fill_sprite_with_texure(int tex_id, struct sprite* s, int w, int h) {
 	s->t.color = 0xffffffff;
 	s->t.additive = 0;
 	s->t.program = PROGRAM_DEFAULT;
+	s->t.vertex = NULL;
+	s->t.vn = 0;
 
 	s->start_frame = 0;
 	s->total_frame = 0;

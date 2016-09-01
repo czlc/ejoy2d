@@ -183,7 +183,7 @@ lframe(lua_State *L) {
 	for (i=0;i<6;i++) {
 		screen_trans(&vp[i].vx, &vp[i].vy);
 	}
-	shader_drawpolygon(6, vp, color, 0);
+	shader_drawpolygon(6, vp, color, 0, 0, NULL);
 
 	vp[0].vx = x+w;
 	vp[0].vy = y+h;
@@ -203,7 +203,7 @@ lframe(lua_State *L) {
 	for (i=0;i<6;i++) {
 		screen_trans(&vp[i].vx, &vp[i].vy);
 	}
-	shader_drawpolygon(6, vp, color, 0);
+	shader_drawpolygon(6, vp, color, 0, 0, NULL);
 
 	return 0;
 }
@@ -241,7 +241,7 @@ lpolygon(lua_State *L) {
 	if (point == 4) {
 		shader_draw(vb, color, 0);
 	} else {
-		shader_drawpolygon(point, vb, color, 0);
+		shader_drawpolygon(point, vb, color, 0, 0, NULL);
 	}
 	return 0;
 }

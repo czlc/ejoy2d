@@ -3,16 +3,15 @@ local fw = require "ejoy2d.framework"
 local pack = require "ejoy2d.simplepackage"
 local s = require "ejoy2d.shader.c"
 
---s.blend(0, 0)
+s.blend(0x0302, 0x0303)
 pack.load {
 	pattern = fw.WorkDir..[[examples/asset/?]],
 	"creature",
 }
 
 
-local obj = ej.sprite("creature","raptor")
-obj:ps(0.5)
-obj.action = "walk"
+local obj = ej.sprite("creature","deer")
+obj:ps(2.0)
 local game = {}
 local screencoord = { x = 512, y = 384, scale = 1.2 }
 

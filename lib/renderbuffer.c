@@ -135,7 +135,7 @@ drawpolygon(struct render_buffer *rb, struct sprite_pack *pack, struct pack_poly
 		ARRAY(struct vertex_pack, vb, pn);
 
 		uv_t * texture_coord = OFFSET_TO_POINTER(uv_t, pack, p->texture_coord);
-		int32_t * screen_coord = OFFSET_TO_POINTER(int32_t, pack, p->screen_coord);
+		int16_t * screen_coord = OFFSET_TO_POINTER(int16_t, pack, p->screen_coord);
 
 		for (j=0;j<pn;j++) {
 			int xx = screen_coord[j*2+0];

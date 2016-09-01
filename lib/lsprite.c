@@ -39,6 +39,8 @@ newlabel(lua_State *L, struct pack_label *label) {
 	s->t.color = 0xffffffff;
 	s->t.additive = 0;
 	s->t.program = PROGRAM_DEFAULT;
+	s->t.vertex = NULL;
+	s->t.vn = 0;
 	s->flags = 0;
 	s->name = NULL;
 	s->id = 0;
@@ -177,6 +179,8 @@ newanchor(lua_State *L) {
 	s->t.color = 0xffffffff;
 	s->t.additive = 0;
 	s->t.program = PROGRAM_DEFAULT;
+	s->t.vertex = NULL;
+	s->t.vn = 0;
 	s->flags = SPRFLAG_INVISIBLE;  // anchor is invisible by default
 	s->name = NULL;
 	s->id = ANCHOR_ID;
@@ -1449,6 +1453,8 @@ lnewproxy(lua_State *L) {
 	s->t.color = 0xffffffff;
 	s->t.additive = 0;
 	s->t.program = PROGRAM_DEFAULT;
+	s->t.vertex = NULL;
+	s->t.vn = 0;
 	s->flags = SPRFLAG_MULTIMOUNT;
 	s->name = NULL;
 	s->id = 0;
