@@ -1,3 +1,5 @@
+/*http://blog.codingnow.com/2014/09/ejoy2d_shader.html */
+
 #include "shader.h"
 #include "material.h"
 #include "fault.h"
@@ -27,31 +29,32 @@
 
 struct uniform {
 	int loc;
-	int offset;
+	int offset;					/* 此uniform数据在缓存(program.uniform_value or material.uniform)中的偏移量 */
 	enum UNIFORM_FORMAT type;
 };
 
+/* 共有16个program对象 ,上层使用它，通过它来操作对应的shader对象 */
 struct program {
-	RID prog;
-	struct material * material;
-	int texture_number;
-	int uniform_number;
-	struct uniform uniform[MAX_UNIFORM];
-	bool reset_uniform;
-	bool uniform_change[MAX_UNIFORM];
-	float uniform_value[MAX_UNIFORM * 16];
+	RID prog;								/* 关联的shader对象，见render.c */
+	struct material * material;				/* 当前的material，它通常来自各个sprite，在此记录的目的是如果先后2次绘制material相同就不用apply_material */
+	int texture_number;						/* 此program中sample2D 个数 */
+	int uniform_number;						/* 有效uniform 数*/
+	struct uniform uniform[MAX_UNIFORM];	/* uniform 数组 */
+	bool reset_uniform;						/* uniform 是否有修改 */
+	bool uniform_change[MAX_UNIFORM];		/* 标志具体哪些uniform有修改 */
+	float uniform_value[MAX_UNIFORM * 16];	/* 全局uniform，如果有material则会被覆盖 */
 };
 
 struct render_state {
 	struct render * R;
-	int current_program;
-	struct program program[MAX_PROGRAM];
-	RID tex[MAX_TEXTURE_CHANNEL];
-	int blendchange;
+	int current_program;					// 当前program template id
+	struct program program[MAX_PROGRAM];	// 16个shader program template，7个系统，9个用户自定义
+	RID tex[MAX_TEXTURE_CHANNEL];			// 每个channel 相当于一支独立的笔
+	int blendchange;						// 混合参数改变不再是默认值
 	int drawcall;
 	RID vertex_buffer;
-	RID index_buffer;
-	RID layout;
+	RID index_buffer;						// index buffer
+	RID layout;								// vertex attribute 在数组(render.attrib)中的位置
 	struct render_buffer vb;
 };
 
@@ -110,7 +113,7 @@ shader_init() {
 	rs->layout = render_register_vertexlayout(rs->R, sizeof(va)/sizeof(va[0]), va);
 	render_set(rs->R, VERTEXLAYOUT, rs->layout, 0);
 	render_set(rs->R, INDEXBUFFER, rs->index_buffer, 0);
-	render_set(rs->R, VERTEXBUFFER, rs->vertex_buffer, 0);
+	render_set(rs->R, VERTEXBUFFER, rs->vertex_buffer, 0); /* 使用0号slot */
 
 	RS = rs;
 }
@@ -139,8 +142,8 @@ program_init(struct program * p, const char *FS, const char *VS, int texture, co
 	args.texture = texture;
 	args.texture_uniform = texture_uniform_name;
 	p->prog = render_shader_create(R, &args);
-	render_shader_bind(R, p->prog);
-	render_shader_bind(R, 0);
+ 	render_shader_bind(R, p->prog); /* Q:liuchang 这2句似乎没什么意义? */
+ 	render_shader_bind(R, 0);
 }
 
 void 
@@ -197,6 +200,7 @@ renderbuffer_commit(struct render_buffer * rb) {
 	render_draw(R, DRAW_TRIANGLE, 0, 6 * rb->object);
 }
 
+// 任何渲染状态改变都应该调用
 static void
 rs_commit() {
 	struct render_buffer * rb = &(RS->vb);
@@ -212,7 +216,7 @@ rs_commit() {
 
 void 
 shader_drawbuffer(struct render_buffer * rb, float tx, float ty, float scale) {
-	rs_commit();
+	rs_commit();	// 绘制新的drawbuffer的时候需要把之前的绘制命令提交
 
 	RID glid = texture_glid(rb->texid);
 	if (glid == 0)
@@ -237,6 +241,7 @@ shader_drawbuffer(struct render_buffer * rb, float tx, float ty, float scale) {
 	render_set(RS->R, VERTEXBUFFER, RS->vertex_buffer, 0);
 }
 
+// 改变某个通道的纹理，id为otexid
 void
 shader_texture(int id, int channel) {
 	assert(channel < MAX_TEXTURE_CHANNEL);
@@ -264,9 +269,10 @@ apply_uniform(struct program *p) {
 void
 shader_program(int n, struct material *m) {
 	struct program *p = &RS->program[n];
-	if (RS->current_program != n || p->reset_uniform || m) {
+	if (RS->current_program != n || p->reset_uniform || m) {	/* Q:liuchang 带有m的相同的spr多次绘制也会每次commit，效率不高 */
 		rs_commit();
 	}
+	/* 先应用全局uniform，如果sprite的material也有自己的uniform再覆盖 */
 	if (RS->current_program != n) {
 		RS->current_program = n;
 		render_shader_bind(RS->R, p->prog);
@@ -345,6 +351,7 @@ shader_defaultblend() {
 void
 shader_blend(int m1, int m2) {
 	if (m1 != BLEND_GL_ONE || m2 != BLEND_GL_ONE_MINUS_SRC_ALPHA) {
+		// 变回来得用shader_defaultblend，否则有问题
 		rs_commit();
 		RS->blendchange = 1;
 		enum BLEND_FORMAT src = blend_mode(m1);
@@ -417,7 +424,7 @@ shader_adduniform(int prog, const char * name, enum UNIFORM_FORMAT t) {
 	shader_program(prog, NULL);
 	struct program * p = &RS->program[prog];
 	assert(p->uniform_number < MAX_UNIFORM);
-	int loc = render_shader_locuniform(RS->R, name);
+	int loc = render_shader_locuniform(RS->R, name); // 获得uniform location
 	int index = p->uniform_number++;
 	struct uniform * u = &p->uniform[index];
 	u->loc = loc;
@@ -437,11 +444,13 @@ shader_adduniform(int prog, const char * name, enum UNIFORM_FORMAT t) {
 
 struct material {
 	struct program *p;
-	int texture[MAX_TEXTURE_CHANNEL];
-	bool uniform_enable[MAX_UNIFORM];
-	float uniform[1];
+	int texture[MAX_TEXTURE_CHANNEL];	/* 保存的是gtexid */
+	bool uniform_enable[MAX_UNIFORM];	/* 记录material中哪些uniform是有效的 */
+	float uniform[1];					/* 存储uniform数据 */
+	bool reset;
 };
 
+/* 获得一个prog对应material的大小，因为prog定了，uniform也就定下来了，能通过material修改的也有限*/
 int 
 material_size(int prog) {
 	if (prog < 0 || prog >= MAX_PROGRAM)
@@ -463,6 +472,7 @@ material_init(void *self, int size, int prog) {
 	memset(self, 0, rsz);
 	struct material * m = (struct material *)self;
 	m->p = p;
+	m->reset = false;
 	int i;
 	for (i=0;i<MAX_TEXTURE_CHANNEL;i++) {
 		m->texture[i] = -1;
@@ -471,6 +481,7 @@ material_init(void *self, int size, int prog) {
 	return m;
 }
 
+// index 为uniform loc
 int 
 material_setuniform(struct material *m, int index, int n, const float *v) {
 	struct program * p = m->p;
@@ -481,6 +492,7 @@ material_setuniform(struct material *m, int index, int n, const float *v) {
 	}
 	memcpy(m->uniform + u->offset, v, n * sizeof(float));
 	m->uniform_enable[index] = true;
+	m->reset = true;
 	return 0;
 }
 
@@ -489,9 +501,10 @@ material_apply(int prog, struct material *m) {
 	struct program * p = m->p;
 	if (p != &RS->program[prog])
 		return;
-	if (p->material == m) {
+	if (p->material == m && !m->reset) {
 		return;
 	}
+	m->reset = false;
 	p->material = m;
 	p->reset_uniform = true;
 	int i;
@@ -520,5 +533,6 @@ material_settexture(struct material *m, int channel, int texture) {
 		return 1;
 	}
 	m->texture[channel] = texture;
+	m->reset = true;
 	return 0;
 }

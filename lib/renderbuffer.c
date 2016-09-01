@@ -15,6 +15,7 @@ renderbuffer_initrender(struct render *r) {
 	R = r;
 }
 
+// 添加一个quad，返回1表示已经满了，无法继续添加
 int
 renderbuffer_add(struct render_buffer *rb, const struct vertex_pack vb[4], uint32_t color, uint32_t additive) {
 	if (rb->object >= MAX_COMMBINE) {
@@ -41,6 +42,7 @@ renderbuffer_add(struct render_buffer *rb, const struct vertex_pack vb[4], uint3
 
 }
 
+// 返回0表示可以更新，返回1表示不能更新
 static int
 update_tex(struct render_buffer *rb, int id) {
 	if (rb->object == 0) {

@@ -198,6 +198,9 @@ sprite_init(struct sprite * s, struct sprite_pack * pack, int id, int sz) {
 	}
 }
 
+/*
+** 关联子节点和父节点, index是子节点索引,child是要挂接上去的子节点
+*/
 void
 sprite_mount(struct sprite *parent, int index, struct sprite *child) {
 	assert(parent->type == TYPE_ANIMATION);
@@ -240,6 +243,9 @@ get_frame(struct sprite *s) {
 	return f + s->start_frame;
 }
 
+/*
+** 获得子节点在component中的索引
+*/
 int
 sprite_child(struct sprite *s, const char * childname) {
 	assert(childname);
@@ -329,6 +335,12 @@ color_add(uint32_t c1, uint32_t c2) {
 		clamp(b1+b2);
 }
 
+/*
+** 变化累积 t->mat = t->mat * b->mat
+** t->mat 是子节点变化
+** b->mat 是父节点变化
+** 优先引用子节点变化
+*/
 static inline void
 sprite_trans_mul_(struct sprite_trans *b, struct sprite_trans *t, struct matrix *tmp_matrix) {
 	if (t->mat == NULL) {
@@ -349,6 +361,10 @@ sprite_trans_mul_(struct sprite_trans *b, struct sprite_trans *t, struct matrix 
 	}
 }
 
+/*
+** 加入节点静态变化 a
+** t = a * b
+*/
 struct sprite_trans *
 sprite_trans_mul2(struct sprite_pack *pack, struct sprite_trans_data *a, struct sprite_trans *b, struct sprite_trans *t, struct matrix *tmp_matrix) {
 	if (b == NULL && a == NULL) {
@@ -366,6 +382,11 @@ sprite_trans_mul2(struct sprite_pack *pack, struct sprite_trans_data *a, struct 
 	return t;
 }
 
+/*
+** 加入节点的动态变化 a
+** t = a * b
+** 优先引用a的属性，没有设置的话会设置成b的
+*/
 struct sprite_trans *
 sprite_trans_mul(struct sprite_trans *a, struct sprite_trans *b, struct sprite_trans *t, struct matrix *tmp_matrix) {
 	if (b == NULL) {
@@ -393,6 +414,7 @@ mat_mul(struct matrix *a, struct matrix *b, struct matrix *tmp) {
 	return tmp;
 }
 
+/* 切换当前program */
 static void
 switch_program(struct sprite_trans *t, int def, struct material *m) {
 	int prog = t->program;
@@ -440,15 +462,19 @@ set_scissor(const struct pack_pannel *p, const struct srt *srt, const struct spr
 	scissor_push(minx,miny,maxx-minx,maxy-miny);
 }
 
+/*
+** anchor保存当前世界矩阵变换
+** arg 是节点层层累积下来的世界矩阵变化
+*/
 static void
 anchor_update(struct sprite *s, struct srt *srt, struct sprite_trans *arg) {
 	struct matrix *r = s->s.mat;
 	if (arg->mat == NULL) {
 		matrix_identity(r);
 	} else {
-		*r = *arg->mat;
+		*r = *arg->mat;	/* 保存世界矩阵变换 */
 	}
-	matrix_srt(r, srt);
+	matrix_srt(r, srt); /* 再应用 srt */
 }
 
 static void
@@ -508,11 +534,15 @@ drawparticle(struct sprite *s, struct particle_system *ps, struct pack_picture *
 	s->t.color = old_c;
 }
 
+/*
+** s是要绘制的spr
+** ts 是绘制过程中从父节点累积下来的变换
+*/
 static int
 draw_child(struct sprite *s, struct srt *srt, struct sprite_trans * ts, struct material * material) {
 	struct sprite_trans temp;
 	struct matrix temp_matrix;
-	struct sprite_trans *t = sprite_trans_mul(&s->t, ts, &temp, &temp_matrix);
+	struct sprite_trans *t = sprite_trans_mul(&s->t, ts, &temp, &temp_matrix); // 应用动态变化
 	if (s->material) {
 		material = s->material;
 	} 
@@ -537,7 +567,7 @@ draw_child(struct sprite *s, struct srt *srt, struct sprite_trans * ts, struct m
 			switch_program(t, PROGRAM_PICTURE, material);
 			drawparticle(s, s->data.anchor->ps, s->data.anchor->pic, srt);
 		}
-		anchor_update(s, srt, t);
+		anchor_update(s, srt, t);	/* anchor 并不会绘制什么东西，它保存世界矩阵变换 */
 		return 0;
 	case TYPE_ANIMATION:
 		break;
@@ -563,7 +593,7 @@ draw_child(struct sprite *s, struct srt *srt, struct sprite_trans * ts, struct m
 	pf = &pf[frame];
 	int i;
 	int scissor = 0;
-	for (i=0;i<pf->n;i++) {
+	for (i=0;i<pf->n;i++) { /* 遍历此帧下的所有元件 */
 		struct pack_part *pp = OFFSET_TO_POINTER(struct pack_part, s->pack, pf->part);
 		pp = &pp[i];
 		int index = pp->component_id;
@@ -913,6 +943,11 @@ test_pannel(struct pack_pannel *pannel, int x, int y) {
 
 static int test_child(struct sprite *s, struct srt *srt, struct matrix * ts, int x, int y, struct sprite ** touch);
 
+/*
+** 返回值表示如果点击到的某个sprite(通过touch返回)此sprite是否接受消息(touchable)
+** 另一个返回值touch 表示被点击到的sprite或者sub sprite，它不管是否sprite被设置为
+** touchable
+*/
 static int
 check_child(struct sprite *s, struct srt *srt, struct matrix * t, struct pack_frame * pf, int i, int x, int y, struct sprite ** touch) {
 	struct pack_part *pp = OFFSET_TO_POINTER(struct pack_part, s->pack, pf->part);
@@ -990,6 +1025,11 @@ test_animation(struct sprite *s, struct srt *srt, struct matrix * t, int x, int 
 	return 0;
 }
 
+/*
+** 返回值表示如果点击到了某个sprite(通过touch返回)此sprite是否接受消息(touchable)
+** 另一个返回值touch 表示被点击到的sprite或者sub sprite，它不管是否sprite被设置为
+** touchable
+*/
 static int
 test_child(struct sprite *s, struct srt *srt, struct matrix * ts, int x, int y, struct sprite ** touch) {
 	struct matrix temp;
@@ -1065,10 +1105,10 @@ struct sprite *
 sprite_test(struct sprite *s, struct srt *srt, int x, int y) {
 	struct sprite *tmp = NULL;
 	int testin = test_child(s, srt, NULL, x, y, &tmp);
-	if (testin) {
+	if (testin) { /* 如果tmp可以接收消息则直接返回子节点 tmp */
 		return tmp;
 	}
-	if (tmp) {
+	if (tmp) { /* 如果tmp不能接收消息，但被点中了，则返回父节点 s*/
 		return s;
 	}
 	return NULL;
