@@ -25,13 +25,14 @@ screen_init(float w, float h, float scale) {
 	SCREEN.width = (int)w;
 	SCREEN.height = (int)h;
 	SCREEN.scale = scale;
-	SCREEN.invw = 2.0f / SCREEN_SCALE / w;
+	SCREEN.invw = 2.0f / SCREEN_SCALE / w;	// 屏幕坐标取值范围[-1,1]，所以长宽绝对值为2，这里invw用于把逻辑像素转成屏幕坐标
 	SCREEN.invh = -2.0f / SCREEN_SCALE / h;
 	if (R) {
 		render_setviewport(R, 0, 0, w * scale, h * scale );
 	}
 }
 
+// 把逻辑像素值转成屏幕坐标[-1, 1]
 void
 screen_trans(float *x, float *y) {
 	*x *= SCREEN.invw;

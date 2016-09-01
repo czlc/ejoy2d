@@ -18,6 +18,7 @@ array_size(int n, int sz) {
 	return n * sz;
 }
 
+/* 数组方式存储，链表方式使用 */
 void 
 array_init(struct array *p, void * buffer, int n, int nsz) {
 	int sz = ALIGN(nsz);
@@ -56,6 +57,7 @@ array_free(struct array *p, void *v) {
 	}
 }
 
+// 根据data地址获得相应的id
 int 
 array_id(struct array *p, void *v) {
 	if (v == NULL)
@@ -66,6 +68,7 @@ array_id(struct array *p, void *v) {
 	return idx + 1;
 }
 
+// 根据id获得相应data地址
 void * 
 array_ref(struct array *p, int id) {
 	if (id == 0)
@@ -76,6 +79,7 @@ array_ref(struct array *p, int id) {
 	return ptr;
 }
 
+// 关闭回调，如果是c++就析构函数了
 void 
 array_exit(struct array *p, void (*close)(void *p, void *ud), void *ud) {
 	ARRAY(char, flag, p->n);

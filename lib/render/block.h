@@ -14,6 +14,7 @@ block_init(struct block * B, void * buffer, int sz) {
 	B->sz = sz;
 }
 
+// ÇÐÒ»¿é³öÈ¥
 static inline void * 
 block_slice(struct block * B, int sz) {
 	if (B->sz < sz) {

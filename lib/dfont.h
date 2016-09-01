@@ -1,3 +1,4 @@
+/* 矩形区域的管理，根据c和font和edge找到字体在纹理的什么位置 */
 #ifndef dynamic_font_h
 #define dynamic_font_h
 #include <stdlib.h>

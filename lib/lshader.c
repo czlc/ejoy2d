@@ -13,17 +13,19 @@
 
 static int
 lload(lua_State *L) {
-	int prog = (int)luaL_checkinteger(L,1);
+	int prog = (int)luaL_checkinteger(L,1);		/* prog id 0~15，其中0~6为引擎定义shader,7~15为用户自定义shader，见shader.lua */
 	const char *fs = luaL_checkstring(L, 2);
 	const char *vs = luaL_checkstring(L, 3);
+	
+	/* uniform sampler2D 的名字列表 */
 	if (lua_istable(L, 4)) {
 		int texture_number = lua_rawlen(L, 4);
 		ARRAY(const char *, name, texture_number);
-		luaL_checkstack(L, texture_number + 1, NULL);
+		luaL_checkstack(L, texture_number + 1, NULL);	/* 时刻注意可能导致栈空间用完的情况，可能因为脚本传入的 name list 过长 */
 		int i;
 		for (i=0;i<texture_number;i++) {
 			lua_rawgeti(L, -1-i, i+1);
-			name[i] = luaL_checkstring(L, -1);
+			name[i] = luaL_checkstring(L, -1);	// texture name比如texture0, 在shader中声明为uniform sampler2D texture0;
 		}
 		shader_load(prog, fs, vs, texture_number, name);
 	} else {
@@ -89,7 +91,7 @@ ldraw(lua_State *L) {
 	if (point == 4) {
 		shader_draw(vb, color, additive);
 	} else {
-		shader_drawpolygon(point, vb, color, additive, 0, NULL);
+		shader_drawpolygon(point, vb, color, additive);
 	}
 	return 0;
 }
