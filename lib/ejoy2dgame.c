@@ -17,7 +17,6 @@
 #include "particle.h"
 #include "lrenderbuffer.h"
 #include "lgeometry.h"
-#include "screen.h"
 
 //#define LOGIC_FRAME 30
 
@@ -73,19 +72,9 @@ linject(lua_State *L) {
 }
 
 static int
-lreset_screen(lua_State *L) {
-	int w = (int)luaL_checkinteger(L, 1);
-	int h = (int)luaL_checkinteger(L, 2);
-	float scale = (float)luaL_checknumber(L, 3);
-	screen_init(w, h, scale);
-	return 0;
-}
-
-static int
 ejoy2d_framework(lua_State *L) {
 	luaL_Reg l[] = {
 		{ "inject", linject },
-		{ "reset_screen", lreset_screen },
 		{ NULL, NULL },
 	};
 	luaL_newlibtable(L, l);
@@ -169,6 +158,16 @@ ejoy2d_close_lua(struct game *G) {
 	}
 }
 
+void close_game(struct game *G);
+
+void
+ejoy2d_game_exit(struct game *G) {
+	close_game(G);
+	ejoy2d_close_lua(G);
+	label_unload();
+	texture_exit();
+	shader_unload();
+}
 
 lua_State *
 ejoy2d_game_lua(struct game *G) {
@@ -365,18 +364,9 @@ ejoy2d_game_pause(struct game* G) {
 	lua_settop(L, TOP_FUNCTION);
 }
 
-static void close_game(struct game *G) {
+void close_game(struct game *G) {
 	lua_State *L = G->L;
 	lua_getfield(L, LUA_REGISTRYINDEX, EJOY_CLOSE);
 	call(L, 0, 0);
 	lua_settop(L, TOP_FUNCTION);
-}
-
-void
-ejoy2d_game_exit(struct game *G) {
-	close_game(G);
-	ejoy2d_close_lua(G);
-	label_unload();
-	texture_exit();
-	shader_unload();
 }
