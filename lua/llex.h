@@ -2,6 +2,7 @@
 ** $Id: llex.h,v 1.79 2016/05/02 14:02:12 roberto Exp $
 ** Lexical Analyzer
 ** See Copyright Notice in lua.h
+** 词法分析器，解析出token供语法分析器(lparser)使用
 */
 
 #ifndef llex_h
@@ -25,15 +26,51 @@
 */
 enum RESERVED {
   /* terminal symbols denoted by reserved words */
-  TK_AND = FIRST_RESERVED, TK_BREAK,
-  TK_DO, TK_ELSE, TK_ELSEIF, TK_END, TK_FALSE, TK_FOR, TK_FUNCTION,
-  TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NIL, TK_NOT, TK_OR, TK_REPEAT,
-  TK_RETURN, TK_THEN, TK_TRUE, TK_UNTIL, TK_WHILE,
+  TK_AND = FIRST_RESERVED, /* 257 */
+  TK_BREAK,		/* 258 */
+  
+  TK_DO,		/* 259 */
+  TK_ELSE,		/* 260 */
+  TK_ELSEIF,	/* 261 */
+  TK_END,		/* 262 */
+  TK_FALSE,		/* 263 */
+  TK_FOR,		/* 264 */
+  TK_FUNCTION,	/* 265 */
+  
+  TK_GOTO,		/* 266 */
+  TK_IF,		/* 267 */
+  TK_IN,		/* 268 */
+  TK_LOCAL,		/* 269 */
+  TK_NIL,		/* 270 */
+  TK_NOT,		/* 271 */
+  TK_OR,		/* 272 */
+  TK_REPEAT,	/* 273 */
+  
+  TK_RETURN,	/* 274 */
+  TK_THEN,		/* 275 */
+  TK_TRUE,		/* 276 */
+  TK_UNTIL,		/* 277 */
+  TK_WHILE,		/* 278 */
+
   /* other terminal symbols */
-  TK_IDIV, TK_CONCAT, TK_DOTS, TK_EQ, TK_GE, TK_LE, TK_NE,
-  TK_SHL, TK_SHR,
-  TK_DBCOLON, TK_EOS,
-  TK_FLT, TK_INT, TK_NAME, TK_STRING
+  TK_IDIV,		/* 279  //	*/
+  TK_CONCAT,	/* 280 ..	*/
+  TK_DOTS,		/* 281 ...	*/
+  TK_EQ,		/* 282 ==	*/
+  TK_GE,		/* 283 >=	*/
+  TK_LE,		/* 284 <=	*/
+  TK_NE,		/* 285 ~=	*/
+  
+  TK_SHL,		/* 286 << */
+  TK_SHR,		/* 287 >> */
+  
+  TK_DBCOLON,	/* 288 :: */
+  TK_EOS,		/* 289 */
+  
+  TK_FLT,		/* 290 浮点数 */
+  TK_INT,		/* 291 整形 */
+  TK_NAME,		/* 292 */
+  TK_STRING		/* 293 */
 };
 
 /* number of reserved words */
@@ -44,12 +81,12 @@ typedef union {
   lua_Number r;
   lua_Integer i;
   TString *ts;
-} SemInfo;  /* semantics information */
+} SemInfo;  /* semantics(语义) information */
 
 
 typedef struct Token {
-  int token;
-  SemInfo seminfo;
+  int token; /* token id，见RESERVED,也可能是某个字符 */
+  SemInfo seminfo; /* token 内容 */
 } Token;
 
 
@@ -61,11 +98,11 @@ typedef struct LexState {
   int lastline;  /* line of last token 'consumed' */
   Token t;  /* current token */
   Token lookahead;  /* look ahead token */
-  struct FuncState *fs;  /* current function (parser) */
+  struct FuncState *fs;  /* current function (parser), 始终指向当前正在被解析的函数，当open_func的时候会指向当前函数，close_func的时候会跳向它的父函数 */
   struct lua_State *L;
   ZIO *z;  /* input stream */
   Mbuffer *buff;  /* buffer for tokens */
-  Table *h;  /* to avoid collection/reuse strings */
+  Table *h;  /* to avoid collection/reuse strings，词法解析中的字符串如果不找个地方存，可能会被垃圾回收，语法解析中貌似用到它作为常量表见lcode addk */
   struct Dyndata *dyd;  /* dynamic structures used by the parser */
   TString *source;  /* current source name */
   TString *envn;  /* environment variable name */

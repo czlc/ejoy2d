@@ -1,5 +1,5 @@
 /*
-** $Id: lstrlib.c,v 1.251 2016/05/20 14:13:21 roberto Exp $
+** $Id: lstrlib.c,v 1.254 2016/12/22 13:08:50 roberto Exp $
 ** Standard library for string operations and pattern-matching
 ** See Copyright Notice in lua.h
 */
@@ -219,8 +219,8 @@ typedef struct MatchState {
   int matchdepth;  /* control for recursive depth (to avoid C stack overflow) */
   unsigned char level;  /* total number of captures (finished or unfinished) */
   struct {
-    const char *init;
-    ptrdiff_t len;
+    const char *init;	/* 捕获字符串在原字符串的起始位置 */
+    ptrdiff_t len;		/* 字符串长度*/
   } capture[LUA_MAXCAPTURES];
 } MatchState;
 
@@ -255,22 +255,23 @@ static int capture_to_close (MatchState *ms) {
 }
 
 
+/* 返回class或者class set的后一个字符 */
 static const char *classend (MatchState *ms, const char *p) {
   switch (*p++) {
     case L_ESC: {
       if (p == ms->p_end)
-        luaL_error(ms->L, "malformed pattern (ends with '%%')");
-      return p+1;
+        luaL_error(ms->L, "malformed pattern (ends with '%%')");	/* 到了模式结尾，不合理 */
+      return p+1;	/* 如果是转义符，则返回转义符后面的字符 */
     }
-    case '[': {
+    case '[': { /* class set */
       if (*p == '^') p++;
       do {  /* look for a ']' */
-        if (p == ms->p_end)
+        if (p == ms->p_end) /* '['没有对应的']' */
           luaL_error(ms->L, "malformed pattern (missing ']')");
         if (*(p++) == L_ESC && p < ms->p_end)
           p++;  /* skip escapes (e.g. '%]') */
       } while (*p != ']');
-      return p+1;
+      return p+1; /* 返回class set 的后一个字符 */
     }
     default: {
       return p;
@@ -299,6 +300,7 @@ static int match_class (int c, int cl) {
 }
 
 
+/* 判断字符c是否属于模式"p...ec"，返回是否匹配 */
 static int matchbracketclass (int c, const char *p, const char *ec) {
   int sig = 1;
   if (*(p+1) == '^') {
@@ -311,7 +313,7 @@ static int matchbracketclass (int c, const char *p, const char *ec) {
       if (match_class(c, uchar(*p)))
         return sig;
     }
-    else if ((*(p+1) == '-') && (p+2 < ec)) {
+    else if ((*(p+1) == '-') && (p+2 < ec)) { /* 取值是范围 */
       p+=2;
       if (uchar(*(p-2)) <= c && c <= uchar(*p))
         return sig;
@@ -321,7 +323,7 @@ static int matchbracketclass (int c, const char *p, const char *ec) {
   return !sig;
 }
 
-
+/* 判断一个字符是否匹配成功，p是模式开始位置,ep是模式结束位置 */
 static int singlematch (MatchState *ms, const char *s, const char *p,
                         const char *ep) {
   if (s >= ms->src_end)
@@ -385,7 +387,7 @@ static const char *min_expand (MatchState *ms, const char *s,
   }
 }
 
-
+/* 添加一个capture，s是带匹配字符串，p是capture的pattern，what是匹配类型 */
 static const char *start_capture (MatchState *ms, const char *s,
                                     const char *p, int what) {
   const char *res;
@@ -394,23 +396,25 @@ static const char *start_capture (MatchState *ms, const char *s,
   ms->capture[level].init = s;
   ms->capture[level].len = what;
   ms->level = level+1;
-  if ((res=match(ms, s, p)) == NULL)  /* match failed? */
+  if ((res=match(ms, s, p)) == NULL)  /* match failed? 整个匹配不成功 */
     ms->level--;  /* undo capture */
   return res;
 }
 
 
+/* 结束一个capture,s是当前匹配到的位置，即)后的字符 */
 static const char *end_capture (MatchState *ms, const char *s,
                                   const char *p) {
-  int l = capture_to_close(ms);
+  int l = capture_to_close(ms);	/* 得到是匹配哪一个capture */
   const char *res;
   ms->capture[l].len = s - ms->capture[l].init;  /* close capture */
-  if ((res = match(ms, s, p)) == NULL)  /* match failed? */
+  if ((res = match(ms, s, p)) == NULL)  /* match failed? 整个匹配不成功 */
     ms->capture[l].len = CAP_UNFINISHED;  /* undo capture */
   return res;
 }
 
 
+/* 赋值得到捕获的字符串 */
 static const char *match_capture (MatchState *ms, const char *s, int l) {
   size_t len;
   l = check_capture(ms, l);
@@ -422,6 +426,11 @@ static const char *match_capture (MatchState *ms, const char *s, int l) {
 }
 
 
+/*
+** s是目标字符串，p是模式字符串
+** 如果匹配成功返回下一个待匹配的位置，如果没有匹配上则返回	null
+** 如果有capture则放到ms中去
+*/
 static const char *match (MatchState *ms, const char *s, const char *p) {
   if (ms->matchdepth-- == 0)
     luaL_error(ms->L, "pattern too complex");
@@ -591,7 +600,7 @@ static int nospecials (const char *p, size_t l) {
 static void prepstate (MatchState *ms, lua_State *L,
                        const char *s, size_t ls, const char *p, size_t lp) {
   ms->L = L;
-  ms->matchdepth = MAXCCALLS;
+  ms->matchdepth = MAXCCALLS;	/* 最多匹配这么多层 */
   ms->src_init = s;
   ms->src_end = s + ls;
   ms->p_end = p + lp;
@@ -839,11 +848,12 @@ static lua_Number adddigit (char *buff, int n, lua_Number x) {
 
 
 static int num2straux (char *buff, int sz, lua_Number x) {
-  if (x != x || x == HUGE_VAL || x == -HUGE_VAL)  /* inf or NaN? */
-    return l_sprintf(buff, sz, LUA_NUMBER_FMT, x);  /* equal to '%g' */
+  /* if 'inf' or 'NaN', format it like '%g' */
+  if (x != x || x == (lua_Number)HUGE_VAL || x == -(lua_Number)HUGE_VAL)
+    return l_sprintf(buff, sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)x);
   else if (x == 0) {  /* can be -0... */
     /* create "0" or "-0" followed by exponent */
-    return l_sprintf(buff, sz, LUA_NUMBER_FMT "x0p+0", x);
+    return l_sprintf(buff, sz, LUA_NUMBER_FMT "x0p+0", (LUAI_UACNUMBER)x);
   }
   else {
     int e;
@@ -933,7 +943,7 @@ static void addquoted (luaL_Buffer *b, const char *s, size_t len) {
 static void checkdp (char *buff, int nb) {
   if (memchr(buff, '.', nb) == NULL) {  /* no dot? */
     char point = lua_getlocaledecpoint();  /* try locale point */
-    char *ppoint = memchr(buff, point, nb);
+    char *ppoint = (char *)memchr(buff, point, nb);
     if (ppoint) *ppoint = '.';  /* change it to a dot */
   }
 }
@@ -960,7 +970,7 @@ static void addliteral (lua_State *L, luaL_Buffer *b, int arg) {
         const char *format = (n == LUA_MININTEGER)  /* corner case? */
                            ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hexa */
                            : LUA_INTEGER_FMT;  /* else use default format */
-        nb = l_sprintf(buff, MAX_ITEM, format, n);
+        nb = l_sprintf(buff, MAX_ITEM, format, (LUAI_UACINT)n);
       }
       luaL_addsize(b, nb);
       break;
@@ -1041,7 +1051,7 @@ static int str_format (lua_State *L) {
         case 'o': case 'u': case 'x': case 'X': {
           lua_Integer n = luaL_checkinteger(L, arg);
           addlenmod(form, LUA_INTEGER_FRMLEN);
-          nb = l_sprintf(buff, MAX_ITEM, form, n);
+          nb = l_sprintf(buff, MAX_ITEM, form, (LUAI_UACINT)n);
           break;
         }
         case 'a': case 'A':
@@ -1051,8 +1061,9 @@ static int str_format (lua_State *L) {
           break;
         case 'e': case 'E': case 'f':
         case 'g': case 'G': {
+          lua_Number n = luaL_checknumber(L, arg);
           addlenmod(form, LUA_NUMBER_FRMLEN);
-          nb = l_sprintf(buff, MAX_ITEM, form, luaL_checknumber(L, arg));
+          nb = l_sprintf(buff, MAX_ITEM, form, (LUAI_UACNUMBER)n);
           break;
         }
         case 'q': {
@@ -1259,7 +1270,7 @@ static KOption getoption (Header *h, const char **fmt, int *size) {
 ** 'psize' is filled with option's size, 'notoalign' with its
 ** alignment requirements.
 ** Local variable 'size' gets the size to be aligned. (Kpadal option
-** always gets its full alignment, other options are limited by 
+** always gets its full alignment, other options are limited by
 ** the maximum alignment ('maxalign'). Kchar option needs no alignment
 ** despite its size.
 */

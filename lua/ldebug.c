@@ -1,5 +1,5 @@
 /*
-** $Id: ldebug.c,v 2.120 2016/03/31 19:01:21 roberto Exp $
+** $Id: ldebug.c,v 2.121 2016/10/19 12:32:10 roberto Exp $
 ** Debug Interface
 ** See Copyright Notice in lua.h
 */
@@ -38,7 +38,8 @@
 #define ci_func(ci)		(clLvalue((ci)->func))
 
 
-static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name);
+static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
+                                    const char **name);
 
 
 static int currentpc (CallInfo *ci) {
@@ -69,6 +70,9 @@ static void swapextra (lua_State *L) {
 
 
 /*
+** [-0, +0, –]
+** Sets the debugging hook function.
+**
 ** This function can be called asynchronously (e.g. during a signal).
 ** Fields 'oldpc', 'basehookcount', and 'hookcount' (set by
 ** 'resethookcount') are for debug only, and it is no problem if they
@@ -105,7 +109,20 @@ LUA_API int lua_gethookcount (lua_State *L) {
   return L->basehookcount;
 }
 
-
+/* 
+** [-0, +0, –]
+**
+** Gets information about the interpreter runtime stack.
+**
+** This function fills parts of a lua_Debug structure with 
+** an identification of the activation record of the function
+** executing at a given level. Level 0 is the current running
+** function, whereas level n+1 is the function that has called
+** level n (except for tail calls, which do not count on the 
+** stack). When there are no errors, lua_getstack returns 1; 
+** when called with a level greater than the stack depth, it
+** returns 0.
+*/
 LUA_API int lua_getstack (lua_State *L, int level, lua_Debug *ar) {
   int status;
   CallInfo *ci;
@@ -166,7 +183,27 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
   return name;
 }
 
-
+/*
+** [-0, +(0|1), –]
+**
+** Gets information about a local variable of a given activation record or
+** a given function.
+**
+** In the first case, the parameter ar must be a valid activation record
+** that was filled by a previous call to lua_getstack or given as argument
+** to a hook (see lua_Hook). The index n selects which local variable to 
+** inspect; see debug.getlocal for details about variable indices and names.
+**
+** lua_getlocal pushes the variable's value onto the stack and returns its name.
+**
+** In the second case, ar must be NULL and the function to be inspected must 
+** be at the top of the stack. In this case, only parameters of Lua functions 
+** are visible (as there is no information about what variables are active) and
+** no values are pushed onto the stack.
+**
+** Returns NULL (and pushes nothing) when the index is greater than the number
+** of active local variables.
+*/
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
   lua_lock(L);
@@ -191,6 +228,17 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
 }
 
 
+/*
+** [-(0|1), +0, –]
+** Sets the value of a local variable of a given activation record.
+** It assigns the value at the top of the stack to the variable and
+** returns its name. It also pops the value from the stack.
+**
+** Returns NULL (and pops nothing) when the index is greater than the
+** number of active local variables.
+**
+** Parameters ar and n are as in function lua_getlocal.
+*/
 LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = NULL;  /* to avoid warnings */
   const char *name;
@@ -244,6 +292,20 @@ static void collectvalidlines (lua_State *L, Closure *f) {
 }
 
 
+static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
+  if (ci == NULL)  /* no 'ci'? */
+    return NULL;  /* no info */
+  else if (ci->callstatus & CIST_FIN) {  /* is this a finalizer? */
+    *name = "__gc";
+    return "metamethod";  /* report it as such */
+  }
+  /* calling function is a known Lua function? */
+  else if (!(ci->callstatus & CIST_TAIL) && isLua(ci->previous))
+    return funcnamefromcode(L, ci->previous, name);
+  else return NULL;  /* no way to find a name */
+}
+
+
 static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
                        Closure *f, CallInfo *ci) {
   int status = 1;
@@ -274,11 +336,7 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
         break;
       }
       case 'n': {
-        /* calling function is a known Lua function? */
-        if (ci && !(ci->callstatus & CIST_TAIL) && isLua(ci->previous))
-          ar->namewhat = getfuncname(L, ci->previous, &ar->name);
-        else
-          ar->namewhat = NULL;
+        ar->namewhat = getfuncname(L, ci, &ar->name);
         if (ar->namewhat == NULL) {
           ar->namewhat = "";  /* not found */
           ar->name = NULL;
@@ -294,7 +352,15 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
   return status;
 }
 
-
+/*
+** [-(0|1), +(0|1|2), e]
+**
+** Gets information about a specific function or function invocation.
+**
+** To get information about a function invocation, the parameter ar must be a 
+** valid activation record that was filled by a previous call to lua_getstack
+** or given as argument to a hook (see lua_Hook).
+*/
 LUA_API int lua_getinfo (lua_State *L, const char *what, lua_Debug *ar) {
   int status;
   Closure *cl;
@@ -471,8 +537,15 @@ static const char *getobjname (Proto *p, int lastpc, int reg,
 }
 
 
-static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
-  TMS tm = (TMS)0;  /* to avoid warnings */
+/*
+** Try to find a name for a function based on the code that called it.
+** (Only works when function was called by a Lua function.)
+** Returns what the name is (e.g., "for iterator", "method",
+** "metamethod") and sets '*name' to point to the name.
+*/
+static const char *funcnamefromcode (lua_State *L, CallInfo *ci,
+                                     const char **name) {
+  TMS tm = (TMS)0;  /* (initial value avoids warnings) */
   Proto *p = ci_func(ci)->p;  /* calling function */
   int pc = currentpc(ci);  /* calling instruction index */
   Instruction i = p->code[pc];  /* calling instruction */
@@ -482,13 +555,13 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
   }
   switch (GET_OPCODE(i)) {
     case OP_CALL:
-    case OP_TAILCALL:  /* get function name */
-      return getobjname(p, pc, GETARG_A(i), name);
+    case OP_TAILCALL:
+      return getobjname(p, pc, GETARG_A(i), name);  /* get function name */
     case OP_TFORCALL: {  /* for iterator */
       *name = "for iterator";
        return "for iterator";
     }
-    /* all other instructions can call only through metamethods */
+    /* other instructions can do calls through metamethods */
     case OP_SELF: case OP_GETTABUP: case OP_GETTABLE:
       tm = TM_INDEX;
       break;
@@ -509,7 +582,8 @@ static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
     case OP_EQ: tm = TM_EQ; break;
     case OP_LT: tm = TM_LT; break;
     case OP_LE: tm = TM_LE; break;
-    default: lua_assert(0);  /* other instructions cannot call a function */
+    default:
+      return NULL;  /* cannot find a reasonable name */
   }
   *name = getstr(G(L)->tmname[tm]);
   return "metamethod";
@@ -642,7 +716,7 @@ l_noret luaG_runerror (lua_State *L, const char *fmt, ...) {
   luaG_errormsg(L);
 }
 
-
+/* 如果有LUA_MASKLINE | LUA_MASKCOUNT，则每执行一条指令都会调用进来 */
 void luaG_traceexec (lua_State *L) {
   CallInfo *ci = L->ci;
   lu_byte mask = L->hookmask;

@@ -1,5 +1,5 @@
 /*
-** $Id: lstate.h,v 2.130 2015/12/16 16:39:38 roberto Exp $
+** $Id: lstate.h,v 2.133 2016/12/22 13:08:50 roberto Exp $
 ** Global State
 ** See Copyright Notice in lua.h
 */
@@ -23,7 +23,7 @@
 **
 ** 'allgc': all objects not marked for finalization;
 ** 'finobj': all objects marked for finalization;
-** 'tobefnz': all objects ready to be finalized; 
+** 'tobefnz': all objects ready to be finalized;
 ** 'fixedgc': all objects that are not to be collected (currently
 ** only small strings, such as reserved words).
 
@@ -34,7 +34,7 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 /*
-** Atomic type (relative to signals) to better ensure that 'lua_sethook' 
+** Atomic type (relative to signals) to better ensure that 'lua_sethook'
 ** is thread safe
 */
 #if !defined(l_signalT)
@@ -52,7 +52,7 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 /* kinds of Garbage Collection */
 #define KGC_NORMAL	0
-#define KGC_EMERGENCY	1	/* gc was forced by an allocation failure */
+#define KGC_EMERGENCY	1	/* gc was forced by an allocation failure，因为内存分配失败调用EMERGENCY，它保证gc过程不会分配额外内存，屏蔽可能需要分配内存的分支 */
 
 
 typedef struct stringtable {
@@ -66,7 +66,7 @@ typedef struct stringtable {
 ** Information about a call.
 ** When a thread yields, 'func' is adjusted to pretend that the
 ** top function has only the yielded values in its stack; in that
-** case, the actual 'func' value is saved in field 'extra'. 
+** case, the actual 'func' value is saved in field 'extra'.
 ** When a function calls another with a continuation, 'extra' keeps
 ** the function index so that, in case of errors, the continuation
 ** function can be called with the correct top.
@@ -74,10 +74,10 @@ typedef struct stringtable {
 typedef struct CallInfo {
   StkId func;  /* function index in the stack */
   StkId	top;  /* top for this function */
-  struct CallInfo *previous, *next;  /* dynamic call link */
+  struct CallInfo *previous, *next;  /* dynamic call link, previous是caller, next用于挂接当前未用到，准备给将来复用的 */
   union {
     struct {  /* only for Lua functions */
-      StkId base;  /* base for this function */
+      StkId base;  /* base for this function, 第一个fix参数位置 */
       const Instruction *savedpc;
     } l;
     struct {  /* only for C functions */
@@ -86,9 +86,9 @@ typedef struct CallInfo {
       lua_KContext ctx;  /* context info. in case of yields */
     } c;
   } u;
-  ptrdiff_t extra;
+  ptrdiff_t extra; /* 保存恢复函数所在的栈位置，之后throw用得上 */
   short nresults;  /* expected number of results from this function */
-  lu_byte callstatus;
+  unsigned short callstatus; /*执行lua 函数为CIST_LUA，否则为 0 */
 } CallInfo;
 
 
@@ -104,6 +104,7 @@ typedef struct CallInfo {
 #define CIST_TAIL	(1<<5)	/* call was tail called */
 #define CIST_HOOKYIELD	(1<<6)	/* last hook called yielded */
 #define CIST_LEQ	(1<<7)  /* using __lt for __le */
+#define CIST_FIN	(1<<8)  /* call is running a finalizer */
 
 #define isLua(ci)	((ci)->callstatus & CIST_LUA)
 
@@ -118,22 +119,22 @@ typedef struct CallInfo {
 typedef struct global_State {
   lua_Alloc frealloc;  /* function to reallocate memory */
   void *ud;         /* auxiliary data to 'frealloc' */
-  l_mem totalbytes;  /* number of bytes currently allocated - GCdebt */
-  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector */
+  l_mem totalbytes;  /* number of bytes currently allocated - GCdebt，可以理解成fix的，即不会被释放的分配量 */
+  l_mem GCdebt;  /* bytes allocated not yet compensated by the collector，将要被释放的量，通常是alloc出来的量，但是可以手动设置，手动设置过后， totalbytes也会被修改 */
   lu_mem GCmemtrav;  /* memory traversed by the GC */
-  lu_mem GCestimate;  /* an estimate of the non-garbage memory in use */
-  stringtable strt;  /* hash table for strings */
-  TValue l_registry;
+  lu_mem GCestimate;  /* an estimate of the non-garbage memory in use，真实内存分配值,它和gettotalbytes(g)得到的值有什么区别:因为luaE_setdebt会随时被调用到 */
+  stringtable strt;  /* hash table for strings，针对short string */
+  TValue l_registry;  /* 注册表, 它位于伪索引 LUA_REGISTRYINDEX 处 */
   unsigned int seed;  /* randomized seed for hashes */
-  lu_byte currentwhite;
+  lu_byte currentwhite; /*lgc.c atomic 中修改 */
   lu_byte gcstate;  /* state of garbage collector */
   lu_byte gckind;  /* kind of GC running */
-  lu_byte gcrunning;  /* true if GC is running */
+  lu_byte gcrunning;  /* true if GC is running，开启或者关闭gc标记 */
   GCObject *allgc;  /* list of all collectable objects */
   GCObject **sweepgc;  /* current position of sweep in list */
-  GCObject *finobj;  /* list of collectable objects with finalizers */
+  GCObject *finobj;  /* list of collectable objects with finalizers，用于收集带有__gc的对象，在atomic中会取出成熟的放到tobefnz，共之后调用__gc */
   GCObject *gray;  /* list of gray objects */
-  GCObject *grayagain;  /* list of objects to be traversed atomically */
+  GCObject *grayagain;  /* list of objects to be traversed atomically，在GCSpropagate阶段各种情况(table改变)添加 */
   GCObject *weak;  /* list of tables with weak values */
   GCObject *ephemeron;  /* list of ephemeron tables (weak keys) */
   GCObject *allweak;  /* list of all-weak tables */
@@ -142,30 +143,30 @@ typedef struct global_State {
   struct lua_State *twups;  /* list of threads with open upvalues */
   unsigned int gcfinnum;  /* number of finalizers to call in each GC step */
   int gcpause;  /* size of pause between successive GCs */
-  int gcstepmul;  /* GC 'granularity' */
+  int gcstepmul;  /* GC 'granularity(粒度)' */
   lua_CFunction panic;  /* to be called in unprotected errors */
   struct lua_State *mainthread;
   const lua_Number *version;  /* pointer to version number */
   TString *memerrmsg;  /* memory-error message */
   TString *tmname[TM_N];  /* array with tag-method names */
   struct Table *mt[LUA_NUMTAGS];  /* metatables for basic types */
-  TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */
+  TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API，对TString的指针做hash (% STRCACHE_N)，然后简单的LRU替换(STRCACHE_M)  */
 } global_State;
 
 
 /*
-** 'per thread' state
+** 'per thread' state，主要是维护函数调用堆栈和函数状态
 */
 struct lua_State {
   CommonHeader;
-  unsigned short nci;  /* number of items in 'ci' list */
+  unsigned short nci;  /* number of items in 'ci' list，包括不再栈中，待复用的 */
   lu_byte status;
   StkId top;  /* first free slot in the stack */
   global_State *l_G;
-  CallInfo *ci;  /* call info for current function */
+  CallInfo *ci;  /* call info for current function，在luaD_precall中设置 */
   const Instruction *oldpc;  /* last pc traced */
-  StkId stack_last;  /* last free slot in the stack */
-  StkId stack;  /* stack base */
+  StkId stack_last;  /* last free slot in the stack, 整个栈的栈顶 */
+  StkId stack;  /* stack base，整个栈的栈底 */
   UpVal *openupval;  /* list of open upvalues in this stack */
   GCObject *gclist;
   struct lua_State *twups;  /* list of threads with open upvalues */
@@ -173,10 +174,12 @@ struct lua_State {
   CallInfo base_ci;  /* CallInfo for first level (C calling Lua) */
   volatile lua_Hook hook;
   ptrdiff_t errfunc;  /* current error handling function (stack index) */
-  int stacksize;
+  int stacksize;  /* 整个栈数组的大小，包括EXTRA空间 (L->stack_last - L->stack == L->stacksize - EXTRA_STACK) */
   int basehookcount;
   int hookcount;
-  unsigned short nny;  /* number of non-yieldable calls in stack */
+  unsigned short nny;  /* number of non-yieldable calls in stack, 当一级函
+					   数处于 non-yieldable 状态时，更深的层次都无法 yieldable， 这个变量用于监督这个状态
+					   ，在错误发生时报告 */
   unsigned short nCcalls;  /* number of nested C calls */
   l_signalT hookmask;
   lu_byte allowhook;
@@ -204,13 +207,13 @@ union GCUnion {
 
 /* macros to convert a GCObject into a specific value */
 #define gco2ts(o)  \
-	check_exp(novariant((o)->tt) == LUA_TSTRING, &((cast_u(o))->ts))
-#define gco2u(o)  check_exp((o)->tt == LUA_TUSERDATA, &((cast_u(o))->u))
-#define gco2lcl(o)  check_exp((o)->tt == LUA_TLCL, &((cast_u(o))->cl.l))
+	check_exp(novariant((o)->tt) == LUA_TSTRING, &((cast_u(o))->ts))  /* 将GCObject 转为TString */
+#define gco2u(o)  check_exp((o)->tt == LUA_TUSERDATA, &((cast_u(o))->u))  /* 将GCObject转为Udata */
+#define gco2lcl(o)  check_exp((o)->tt == LUA_TLCL, &((cast_u(o))->cl.l))  /* 将GCObject转为LClosure */
 #define gco2ccl(o)  check_exp((o)->tt == LUA_TCCL, &((cast_u(o))->cl.c))
 #define gco2cl(o)  \
 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
-#define gco2t(o)  check_exp((o)->tt == LUA_TTABLE, &((cast_u(o))->h))
+#define gco2t(o)  check_exp((o)->tt == LUA_TTABLE, &((cast_u(o))->h))	/* 将GCObject转换为Table */
 #define gco2p(o)  check_exp((o)->tt == LUA_TPROTO, &((cast_u(o))->p))
 #define gco2th(o)  check_exp((o)->tt == LUA_TTHREAD, &((cast_u(o))->th))
 
@@ -220,7 +223,7 @@ union GCUnion {
 	check_exp(novariant((v)->tt) < LUA_TDEADKEY, (&(cast_u(v)->gc)))
 
 
-/* actual number of total bytes allocated */
+/* actual number of total bytes allocated，得到真实分配的大小 */
 #define gettotalbytes(g)	cast(lu_mem, (g)->totalbytes + (g)->GCdebt)
 
 LUAI_FUNC void luaE_setdebt (global_State *g, l_mem debt);

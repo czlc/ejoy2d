@@ -1,5 +1,5 @@
 /*
-** $Id: lcode.c,v 2.109 2016/05/13 19:09:21 roberto Exp $
+** $Id: lcode.c,v 2.112 2016/12/22 13:08:50 roberto Exp $
 ** Code generator for Lua
 ** See Copyright Notice in lua.h
 */
@@ -40,7 +40,7 @@
 ** If expression is a numeric constant, fills 'v' with its value
 ** and returns 1. Otherwise, returns 0.
 */
-static int tonumeral(expdesc *e, TValue *v) {
+static int tonumeral(const expdesc *e, TValue *v) {
   if (hasjumps(e))
     return 0;  /* not a numeral */
   switch (e->k) {
@@ -86,7 +86,7 @@ void luaK_nil (FuncState *fs, int from, int n) {
 /*
 ** Gets the destination address of a jump instruction. Used to traverse
 ** a list of jumps.
-*/ 
+*/
 static int getjump (FuncState *fs, int pc) {
   int offset = GETARG_sBx(fs->f->code[pc]);
   if (offset == NO_JUMP)  /* point to itself represents end of list */
@@ -251,7 +251,7 @@ static void dischargejpc (FuncState *fs) {
 */
 void luaK_patchtohere (FuncState *fs, int list) {
   luaK_getlabel(fs);  /* mark "here" as a jump target */
-  luaK_concat(fs, &fs->jpc, list);
+  luaK_concat(fs, &fs->jpc, list); /* 下一次生成指令时定位 */
 }
 
 
@@ -552,6 +552,8 @@ void luaK_setoneret (FuncState *fs, expdesc *e) {
 
 /*
 ** Ensure that expression 'e' is not a variable.
+**
+** 去除变量
 */
 void luaK_dischargevars (FuncState *fs, expdesc *e) {
   switch (e->k) {
@@ -591,6 +593,8 @@ void luaK_dischargevars (FuncState *fs, expdesc *e) {
 /*
 ** Ensures expression value is in register 'reg' (and therefore
 ** 'e' will become a non-relocatable expression).
+**
+** discharge变量表达式，使其结果存放到reg中
 */
 static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
   luaK_dischargevars(fs, e);
@@ -600,7 +604,7 @@ static void discharge2reg (FuncState *fs, expdesc *e, int reg) {
       break;
     }
     case VFALSE: case VTRUE: {
-      luaK_codeABC(fs, OP_LOADBOOL, reg, e->k == VTRUE, 0);
+      luaK_codeABC(fs, OP_LOADBOOL, reg, e->k == VTRUE, 0);	/* c == 0 表示不会跳转，是简单赋值 */
       break;
     }
     case VK: {
@@ -730,9 +734,11 @@ int luaK_exp2anyreg (FuncState *fs, expdesc *e) {
 /*
 ** Ensures final expression result is either in a register or in an
 ** upvalue.
+** 
+** 
 */
 void luaK_exp2anyregup (FuncState *fs, expdesc *e) {
-  if (e->k != VUPVAL || hasjumps(e))
+  if (e->k != VUPVAL || hasjumps(e))	/* 表达式带跳转且不是VUPVAL需要重新定位 */
     luaK_exp2anyreg(fs, e);
 }
 
@@ -754,7 +760,7 @@ void luaK_exp2val (FuncState *fs, expdesc *e) {
 ** (that is, it is either in a register or in 'k' with an index
 ** in the range of R/K indices).
 ** Returns R/K index.
-*/  
+*/
 int luaK_exp2RK (FuncState *fs, expdesc *e) {
   luaK_exp2val(fs, e);
   switch (e->k) {  /* move constants to 'k' */
@@ -853,6 +859,8 @@ static int jumponcond (FuncState *fs, expdesc *e, int cond) {
 
 /*
 ** Emit code to go through if 'e' is true, jump otherwise.
+**
+** 表达式为true会继续执行，false会跳转，跳转多少还未定，挂接在e->f
 */
 void luaK_goiftrue (FuncState *fs, expdesc *e) {
   int pc;  /* pc of new jump */
@@ -880,6 +888,8 @@ void luaK_goiftrue (FuncState *fs, expdesc *e) {
 
 /*
 ** Emit code to go through if 'e' is false, jump otherwise.
+**
+** 表达式为false会继续执行，true会跳转，跳转多少还未定
 */
 void luaK_goiffalse (FuncState *fs, expdesc *e) {
   int pc;  /* pc of new jump */
@@ -974,8 +984,11 @@ static int validop (int op, TValue *v1, TValue *v2) {
 /*
 ** Try to "constant-fold" an operation; return 1 iff successful.
 ** (In this case, 'e1' has the final result.)
+**
+** 优化如果操作的2边都是常量，可以编译时得到一个最终的值
 */
-static int constfolding (FuncState *fs, int op, expdesc *e1, expdesc *e2) {
+static int constfolding (FuncState *fs, int op, expdesc *e1,
+                                                const expdesc *e2) {
   TValue v1, v2, res;
   if (!tonumeral(e1, &v1) || !tonumeral(e2, &v2) || !validop(op, &v1, &v2))
     return 0;  /* non-numeric operands or not safe to fold */
@@ -1014,6 +1027,9 @@ static void codeunexpval (FuncState *fs, OpCode op, expdesc *e, int line) {
 ** (everything but logical operators 'and'/'or' and comparison
 ** operators).
 ** Expression to produce final result will be encoded in 'e1'.
+** Because 'luaK_exp2RK' can free registers, its calls must be
+** in "stack order" (that is, first on 'e2', which may have more
+** recent registers to be released).
 */
 static void codebinexpval (FuncState *fs, OpCode op,
                            expdesc *e1, expdesc *e2, int line) {
@@ -1052,17 +1068,19 @@ static void codecomp (FuncState *fs, BinOpr opr, expdesc *e1, expdesc *e2) {
       break;
     }
   }
-  e1->k = VJMP;
+  e1->k = VJMP;	/* e1->u.info 此时是跳转指令的pc */
 }
 
 
 /*
 ** Aplly prefix operation 'op' to expression 'e'.
+**
+** 处理一元表达式，将op应用到表达式e
 */
 void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
-  static expdesc ef = {VKINT, {0}, NO_JUMP, NO_JUMP};  /* fake 2nd operand */
+  static const expdesc ef = {VKINT, {0}, NO_JUMP, NO_JUMP};
   switch (op) {
-    case OPR_MINUS: case OPR_BNOT:
+    case OPR_MINUS: case OPR_BNOT:  /* use 'ef' as fake 2nd operand */
       if (constfolding(fs, op + LUA_OPUNM, e, &ef))
         break;
       /* FALLTHROUGH */
@@ -1078,6 +1096,8 @@ void luaK_prefix (FuncState *fs, UnOpr op, expdesc *e, int line) {
 /*
 ** Process 1st operand 'v' of binary operation 'op' before reading
 ** 2nd operand.
+**
+** 处理二元操作的左值
 */
 void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
   switch (op) {
@@ -1116,19 +1136,21 @@ void luaK_infix (FuncState *fs, BinOpr op, expdesc *v) {
 ** For '(a .. b .. c)' (which is '(a .. (b .. c))', because
 ** concatenation is right associative), merge second CONCAT into first
 ** one.
+**
+** 为二元表达式生成代码
 */
 void luaK_posfix (FuncState *fs, BinOpr op,
                   expdesc *e1, expdesc *e2, int line) {
   switch (op) {
     case OPR_AND: {
-      lua_assert(e1->t == NO_JUMP);  /* list closed by 'luK_infix' */
+      lua_assert(e1->t == NO_JUMP);  /* list closed by 'luaK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->f, e1->f);
       *e1 = *e2;
       break;
     }
     case OPR_OR: {
-      lua_assert(e1->f == NO_JUMP);  /* list closed by 'luK_infix' */
+      lua_assert(e1->f == NO_JUMP);  /* list closed by 'luaK_infix' */
       luaK_dischargevars(fs, e2);
       luaK_concat(fs, &e2->t, e1->t);
       *e1 = *e2;

@@ -1,5 +1,5 @@
 /*
-** $Id: lua.h,v 1.331 2016/05/30 15:53:28 roberto Exp $
+** $Id: lua.h,v 1.332 2016/12/22 15:51:20 roberto Exp $
 ** Lua - A Scripting Language
 ** Lua.org, PUC-Rio, Brazil (http://www.lua.org)
 ** See Copyright Notice at the end of this file
@@ -19,11 +19,11 @@
 #define LUA_VERSION_MAJOR	"5"
 #define LUA_VERSION_MINOR	"3"
 #define LUA_VERSION_NUM		503
-#define LUA_VERSION_RELEASE	"3"
+#define LUA_VERSION_RELEASE	"4"
 
 #define LUA_VERSION	"Lua " LUA_VERSION_MAJOR "." LUA_VERSION_MINOR
 #define LUA_RELEASE	LUA_VERSION "." LUA_VERSION_RELEASE
-#define LUA_COPYRIGHT	LUA_RELEASE "  Copyright (C) 1994-2016 Lua.org, PUC-Rio"
+#define LUA_COPYRIGHT	LUA_RELEASE "  Copyright (C) 1994-2017 Lua.org, PUC-Rio"
 #define LUA_AUTHORS	"R. Ierusalimschy, L. H. de Figueiredo, W. Celes"
 
 
@@ -39,18 +39,18 @@
 ** (-LUAI_MAXSTACK is the minimum valid index; we keep some free empty
 ** space after that to help overflow detection)
 */
-#define LUA_REGISTRYINDEX	(-LUAI_MAXSTACK - 1000)
-#define lua_upvalueindex(i)	(LUA_REGISTRYINDEX - (i))
+#define LUA_REGISTRYINDEX	(-LUAI_MAXSTACK - 1000)		/* 注册表的伪索引 */
+#define lua_upvalueindex(i)	(LUA_REGISTRYINDEX - (i))	/* C函数的upvalue的伪索引*/
 
 
 /* thread status */
-#define LUA_OK		0
-#define LUA_YIELD	1
-#define LUA_ERRRUN	2
-#define LUA_ERRSYNTAX	3
-#define LUA_ERRMEM	4
-#define LUA_ERRGCMM	5
-#define LUA_ERRERR	6
+#define LUA_OK		0			/* 正常运行 */
+#define LUA_YIELD	1			/* 正常挂起 */
+#define LUA_ERRRUN	2			/* 运行时错误 */
+#define LUA_ERRSYNTAX	3		/* 语法错误 */
+#define LUA_ERRMEM	4			/* 内存分配错误 */
+#define LUA_ERRGCMM	5			/* finalizer运行错误 */
+#define LUA_ERRERR	6			/* 错误处理中继续错误 */
 
 
 typedef struct lua_State lua_State;
@@ -75,14 +75,16 @@ typedef struct lua_State lua_State;
 
 
 
-/* minimum Lua stack available to a C function */
+/* minimum Lua stack available to a C function
+   当调用c函数的时候，会留出LUA_MINSTACK的空间供使用，这样不用每次在c函数中分配栈空间
+*/
 #define LUA_MINSTACK	20
 
 
 /* predefined values in the registry */
-#define LUA_RIDX_MAINTHREAD	1
-#define LUA_RIDX_GLOBALS	2
-#define LUA_RIDX_LAST		LUA_RIDX_GLOBALS
+#define LUA_RIDX_MAINTHREAD	1					/* 主线程 */
+#define LUA_RIDX_GLOBALS	2					/* _G */
+#define LUA_RIDX_LAST		LUA_RIDX_GLOBALS	/* 注册表最大索引 */
 
 
 /* type of numbers in Lua */
@@ -100,12 +102,12 @@ typedef LUA_KCONTEXT lua_KContext;
 
 
 /*
-** Type for C functions registered with Lua
+** Type for C functions registered with Lua 供lua调用的c函数原型
 */
 typedef int (*lua_CFunction) (lua_State *L);
 
 /*
-** Type for continuation functions
+** Type for continuation functions 续命函数原型
 */
 typedef int (*lua_KFunction) (lua_State *L, int status, lua_KContext ctx);
 
@@ -113,13 +115,42 @@ typedef int (*lua_KFunction) (lua_State *L, int status, lua_KContext ctx);
 /*
 ** Type for functions that read/write blocks when loading/dumping Lua chunks
 */
+
+/*
+** The reader function used by lua_load. Every time it needs another piece of the
+** chunk, lua_load calls the reader, passing along its data parameter. The reader
+** must return a pointer to a block of memory with a new piece of the chunk and 
+** set size to the block size. The block must exist until the reader function 
+** is called again. To signal the end of the chunk, the reader must return NULL
+** or set size to zero. The reader function may return pieces of any size greater
+** than zero.
+**
+** 参考 generic_reader
+*/
 typedef const char * (*lua_Reader) (lua_State *L, void *ud, size_t *sz);
 
+/*
+** The type of the writer function used by lua_dump. Every time it produces another
+** piece of chunk, lua_dump calls the writer, passing along the buffer to be written
+** (p), its size (sz), and the data parameter supplied to lua_dump.
+**
+** The writer returns an error code: 0 means no errors; any other value means an error
+** and stops lua_dump from calling the writer again
+*/
 typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
 
 
 /*
 ** Type for memory-allocation functions
+** 功能类似realloc
+** ud：传给lua_newstate的用户定义指针
+** osize: 若ptr不为NULL，osize是原始内存块大小，否则是分配对象的类型
+**
+** When nsize is zero, the allocator must behave like free and return NULL.
+**
+** When nsize is not zero, the allocator must behave like realloc. The allocator
+** returns NULL if and only if it cannot fulfill the request. Lua assumes that
+** the allocator never fails when osize >= nsize.
 */
 typedef void * (*lua_Alloc) (void *ud, void *ptr, size_t osize, size_t nsize);
 
@@ -336,6 +367,10 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 ** ===============================================================
 */
 
+/*
+** [-0, +0, –]
+** 获得lua_State的额外空间
+*/
 #define lua_getextraspace(L)	((void *)((char *)(L) - LUA_EXTRASPACE))
 
 #define lua_tonumber(L,i)	lua_tonumberx(L,(i),NULL)
@@ -345,6 +380,10 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 
 #define lua_newtable(L)		lua_createtable(L, 0, 0)
 
+/*
+** [-0, +0, e]
+** Sets the C function f as the new value of global name. 
+*/
 #define lua_register(L,n,f) (lua_pushcfunction(L, (f)), lua_setglobal(L, (n)))
 
 #define lua_pushcfunction(L,f)	lua_pushcclosure(L, (f), 0)
@@ -360,6 +399,10 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 
 #define lua_pushliteral(L, s)	lua_pushstring(L, "" s)
 
+/*
+** [-0, +1, –]
+** Pushes the global environment onto the stack.
+*/
 #define lua_pushglobaltable(L)  \
 	((void)lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS))
 
@@ -370,6 +413,12 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 
 #define lua_remove(L,idx)	(lua_rotate(L, (idx), -1), lua_pop(L, 1))
 
+/*
+** [-1, +0, –]
+** Moves the top element into the given valid index without shifting 
+** any element (therefore replacing the value at that given index),
+** and then pops the top element
+*/
 #define lua_replace(L,idx)	(lua_copy(L, -1, (idx)), lua_pop(L, 1))
 
 /* }============================================================== */
@@ -409,15 +458,35 @@ LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
 /*
 ** Event masks
 */
+/*
+** is called when the interpreter calls a function. The hook is 
+** called just after Lua enters the new function, before the 
+** function gets its arguments
+*/
 #define LUA_MASKCALL	(1 << LUA_HOOKCALL)
+/*
+** is called when the interpreter returns from a function. The hook
+** is called just before Lua leaves the function. There is no 
+** standard way to access the values to be returned by the function.
+*/
 #define LUA_MASKRET	(1 << LUA_HOOKRET)
+/*
+** is called when the interpreter is about to start the execution 
+** of a new line of code, or when it jumps back in the code (even
+** to the same line). (This event only happens while Lua is executing
+** a Lua function.)
+*/
 #define LUA_MASKLINE	(1 << LUA_HOOKLINE)
+/*
+** is called after the interpreter executes every count instructions.
+** (This event only happens while Lua is executing a Lua function.)
+*/
 #define LUA_MASKCOUNT	(1 << LUA_HOOKCOUNT)
 
 typedef struct lua_Debug lua_Debug;  /* activation record */
 
 
-/* Functions to be called by the debugger in specific events */
+/* Functions to be called by the debugger in specific events，外接hook函数 */
 typedef void (*lua_Hook) (lua_State *L, lua_Debug *ar);
 
 
@@ -438,6 +507,51 @@ LUA_API int (lua_gethookmask) (lua_State *L);
 LUA_API int (lua_gethookcount) (lua_State *L);
 
 
+/*
+** source:
+**   the name of the chunk that created the function. If source starts with a
+**   '@', it means that the function was defined in a file where the file name follows
+**   the '@'. If source starts with a '=', the remainder of its contents describe the
+**   source in a user-dependent manner. Otherwise, the function was defined in a string
+**   where source is that string.
+**
+** short_src: a "printable" version of source, to be used in error messages.
+**
+** linedefined: the line number where the definition of the function starts.
+**
+** lastlinedefined: the line number where the definition of the function ends.
+**
+** what: the string "Lua" if the function is a Lua function, "C" if it is a C function, 
+** "main" if it is the main part of a chunk.
+**
+** currentline: the current line where the given function is executing. When no line 
+** information is available, currentline is set to -1.
+**
+** name: 
+**   a reasonable name for the given function. Because functions in Lua are first-class
+**   values, they do not have a fixed name: some functions can be the value of multiple
+**   global variables, while others can be stored only in a table field. The lua_getinfo
+**   function checks how the function was called to find a suitable name. If it cannot 
+**   find a name, then name is set to NULL.
+**
+** namewhat: 
+**   explains the name field. The value of namewhat can be "global", "local", "method", 
+**   "field", "upvalue", or "" (the empty string), according to how the function was called.
+**   (Lua uses the empty string when no other option seems to apply.)
+**
+** istailcall:
+**   true if this function invocation was called by a tail call. In this case, the caller
+**   of this level is not in the stack.
+**
+** nups: 
+**   the number of upvalues of the function.
+**
+** nparams:
+**   the number of fixed parameters of the function (always 0 for C functions).
+**
+** isvararg:
+**   true if the function is a vararg function (always true for C functions).
+*/
 struct lua_Debug {
   int event;
   const char *name;	/* (n) */
@@ -460,7 +574,7 @@ struct lua_Debug {
 
 
 /******************************************************************************
-* Copyright (C) 1994-2016 Lua.org, PUC-Rio.
+* Copyright (C) 1994-2017 Lua.org, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

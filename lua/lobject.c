@@ -1,5 +1,5 @@
 /*
-** $Id: lobject.c,v 2.111 2016/05/20 14:07:48 roberto Exp $
+** $Id: lobject.c,v 2.113 2016/12/22 13:08:50 roberto Exp $
 ** Some generic functions over Lua objects
 ** See Copyright Notice in lua.h
 */
@@ -37,6 +37,8 @@ LUAI_DDEF const TValue luaO_nilobject_ = {NILCONSTANT};
 ** converts an integer to a "floating point byte", represented as
 ** (eeeeexxx), where the real value is (1xxx) * 2^(eeeee - 1) if
 ** eeeee != 0 and (xxx) otherwise.
+** 压缩，使得一个字节可以存比较大的数，b1111 * 2^b11110 = 15 * 2^30
+** 当然会丢失精度，不过对于table size无所谓
 */
 int luaO_int2fb (unsigned int x) {
   int e = 0;  /* exponent */
@@ -53,7 +55,9 @@ int luaO_int2fb (unsigned int x) {
 }
 
 
-/* converts back */
+/* converts back 
+** 底数为((x & 7) + 8)，指数为((x >> 3) - 1)
+*/
 int luaO_fb2int (int x) {
   return (x < 8) ? x : ((x & 7) + 8) << ((x >> 3) - 1);
 }
@@ -159,13 +163,13 @@ void luaO_arith (lua_State *L, int op, const TValue *p1, const TValue *p2,
   luaT_trybinTM(L, p1, p2, res, cast(TMS, (op - LUA_OPADD) + TM_ADD));
 }
 
-
+/* 十六进制字符转对应整数 */
 int luaO_hexavalue (int c) {
   if (lisdigit(c)) return c - '0';
   else return (ltolower(c) - 'a') + 10;
 }
 
-
+/* 处理正负号字符，返回是否是负数符号 */
 static int isneg (const char **s) {
   if (**s == '-') { (*s)++; return 1; }
   else if (**s == '+') (*s)++;
@@ -280,7 +284,7 @@ static const char *l_str2d (const char *s, lua_Number *result) {
   endptr = l_str2dloc(s, result, mode);  /* try to convert */
   if (endptr == NULL) {  /* failed? may be a different locale */
     char buff[L_MAXLENNUM + 1];
-    char *pdot = strchr(s, '.');
+    const char *pdot = strchr(s, '.');
     if (strlen(s) > L_MAXLENNUM || pdot == NULL)
       return NULL;  /* string too long or no dot; fail */
     strcpy(buff, s);  /* copy string to buffer */
@@ -296,6 +300,7 @@ static const char *l_str2d (const char *s, lua_Number *result) {
 #define MAXBY10		cast(lua_Unsigned, LUA_MAXINTEGER / 10)
 #define MAXLASTD	cast_int(LUA_MAXINTEGER % 10)
 
+/* 尝试将字符串s转成一个整数，如果转换成功返回字符串起始位置，否则返回NULL，结果保存在result中 */
 static const char *l_str2int (const char *s, lua_Integer *result) {
   lua_Unsigned a = 0;
   int empty = 1;
@@ -328,6 +333,7 @@ static const char *l_str2int (const char *s, lua_Integer *result) {
 }
 
 
+/* 字符串s转成number，存放在o，返回有效字符串长度 */
 size_t luaO_str2num (const char *s, TValue *o) {
   lua_Integer i; lua_Number n;
   const char *e;
@@ -394,7 +400,7 @@ static void pushstr (lua_State *L, const char *str, size_t l) {
 
 
 /*
-** this function handles only '%d', '%c', '%f', '%p', and '%s' 
+** this function handles only '%d', '%c', '%f', '%p', and '%s'
    conventional formats, plus Lua-specific '%I' and '%U'
 */
 const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
