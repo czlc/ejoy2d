@@ -29,6 +29,7 @@
 #define EJOY_HANDLE_ERROR "EJOY2D_HANDLE_ERROR"
 #define EJOY_RESUME "EJOY2D_RESUME"
 #define EJOY_PAUSE "EJOY2D_PAUSE"
+#define EJOY_CLOSE "EJOY2D_CLOSE"
 
 // 这几个函数在栈上的位置，这几个函数因为调用很频繁，所以一直放在栈上，不用每次lua_getfield来获取
 #define TRACEBACK_FUNCTION 1
@@ -57,6 +58,7 @@ linject(lua_State *L) {
 		EJOY_HANDLE_ERROR,
 		EJOY_RESUME,
 		EJOY_PAUSE,
+		EJOY_CLOSE,
 	};
 	int i;
 	for (i=0;i<sizeof(ejoy_callback)/sizeof(ejoy_callback[0]);i++) {
@@ -156,8 +158,11 @@ ejoy2d_close_lua(struct game *G) {
 	}
 }
 
+void close_game(struct game *G);
+
 void
 ejoy2d_game_exit(struct game *G) {
+	close_game(G);
 	ejoy2d_close_lua(G);
 	label_unload();
 	texture_exit();
@@ -202,6 +207,7 @@ ejoy2d_game_start(struct game *G) {
 	lua_getfield(L,LUA_REGISTRYINDEX, EJOY_MESSAGE);
   lua_getfield(L,LUA_REGISTRYINDEX, EJOY_RESUME);
 	lua_getfield(L, LUA_REGISTRYINDEX, EJOY_PAUSE);
+	lua_getfield(L, LUA_REGISTRYINDEX, EJOY_CLOSE);
 }
 
 
@@ -332,14 +338,14 @@ ejoy2d_game_gesture(struct game *G, int type,
 
 void
 ejoy2d_game_message(struct game* G,int id_, const char* state, const char* data, lua_Number n) {
-  lua_State *L = G->L;
-  lua_getfield(L, LUA_REGISTRYINDEX, EJOY_MESSAGE);
-  lua_pushnumber(L, id_);
-  lua_pushstring(L, state);
-  lua_pushstring(L, data);
+	lua_State *L = G->L;
+	lua_getfield(L, LUA_REGISTRYINDEX, EJOY_MESSAGE);
+	lua_pushnumber(L, id_);
+	lua_pushstring(L, state);
+	lua_pushstring(L, data);
 	lua_pushnumber(L, n);
-  call(L, 4, 0);
-  lua_settop(L, TOP_FUNCTION);
+	call(L, 4, 0);
+	lua_settop(L, TOP_FUNCTION);
 }
 
 void
@@ -358,3 +364,9 @@ ejoy2d_game_pause(struct game* G) {
 	lua_settop(L, TOP_FUNCTION);
 }
 
+void close_game(struct game *G) {
+	lua_State *L = G->L;
+	lua_getfield(L, LUA_REGISTRYINDEX, EJOY_CLOSE);
+	call(L, 0, 0);
+	lua_settop(L, TOP_FUNCTION);
+}

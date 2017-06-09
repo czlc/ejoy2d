@@ -50,6 +50,9 @@ end
 function game.on_pause()
 end
 
+function game.on_close()
+end
+
 ej.start(game)
 
 

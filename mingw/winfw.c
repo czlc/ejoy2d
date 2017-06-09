@@ -115,3 +115,7 @@ ejoy2d_win_touch(int x, int y,int touch) {
 	ejoy2d_game_touch(G->game, id, x,y,touch);
 }
 
+void
+ejoy2d_win_close() {
+	ejoy2d_game_exit(G->game);
+}
