@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ejoy2d", "ejoy2d\ejoy2d.vcxproj", "{D3A9E9A6-062D-4C26-BF35-8F18ED840D8F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{01BCD8E7-7F07-46E6-92CA-4B3E56E35031} = {01BCD8E7-7F07-46E6-92CA-4B3E56E35031}
@@ -42,6 +44,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "script", "script", "{295A37
 		..\..\ejoy2d\simplepackage.lua = ..\..\ejoy2d\simplepackage.lua
 		..\..\ejoy2d\sprite.lua = ..\..\ejoy2d\sprite.lua
 		..\..\ejoy2d\spritepack.lua = ..\..\ejoy2d\spritepack.lua
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{A026908F-58C3-4AFE-AC3B-4AD9F6008828}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\doc\apicn.md = ..\..\doc\apicn.md
 	EndProjectSection
 EndProject
 Global
