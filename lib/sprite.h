@@ -10,7 +10,7 @@
 
 #define SPRFLAG_INVISIBLE           (1)
 #define SPRFLAG_MESSAGE             (2)
-#define SPRFLAG_MULTIMOUNT          (4)
+#define SPRFLAG_MULTIMOUNT          (4)	/* 多个节点可以共享一个子节点, 头像一换多个地方都换 */
 #define SPRFLAG_FORCE_INHERIT_FRAME (8)
 
 struct material;
