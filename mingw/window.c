@@ -4,6 +4,7 @@
 #include <GL/wglew.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "winfw.h"
 
 #define CLASSNAME L"EJOY"
@@ -68,6 +69,41 @@ get_xy(LPARAM lParam, int *x, int *y) {
 	*y = (short)((lParam>>16) & 0xffff); 
 }
 
+#define UNI_SHIFT 10
+#define UNI_BASE 0x0010000
+#define UNI_MASK 0x3FF
+#define UNI_SUR_HIGH_START 0xD800
+#define UNI_SUR_LOW_START 0xDC00
+
+static void
+utf16to8(const uint16_t utf16[2], uint8_t utf8[4]) {
+	uint32_t ch = utf16[0];
+	if ((utf16[0] & UNI_SUR_HIGH_START) == UNI_SUR_HIGH_START) {
+		ch = (utf16[0] & UNI_MASK) << UNI_SHIFT;
+		ch += utf16[1] & UNI_MASK;
+		ch += UNI_BASE;
+	}
+
+	if (ch <= 0x7F) {
+		utf8[0] = ch;
+	}
+	else if (ch <= 0x7FF) {
+		utf8[0] = (ch >> 6) | 0xC0;
+		utf8[1] = (ch & 0x3F) | 0x80;
+	}
+	else if (ch <= 0xFFFF) {
+		utf8[0] = (ch >> 12) | 0xE0;
+		utf8[1] = ((ch >> 6) & 0x3F) | 0x80;
+		utf8[2] = (ch & 0x3F) | 0x80;
+	}
+	else if (ch <= 0x1FFFFF) {
+		utf8[0] = (ch >> 18) | 0xF0;
+		utf8[1] = ((ch >> 12) & 0x3F) | 0x80;
+		utf8[2] = ((ch >> 6) & 0x3F) | 0x80;
+		utf8[3] = (ch & 0x3F) | 0x80;
+	}
+}
+
 static LRESULT CALLBACK
 WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -113,6 +149,13 @@ WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		int x,y;
 		get_xy(lParam, &x, &y); 
 		ejoy2d_win_touch(x,y,TOUCH_MOVE);
+		break;
+	}
+	case WM_CHAR: {
+		uint16_t utf16[2] = { wParam,  0};
+		uint8_t utf8[4] = { 0 };
+		utf16to8(utf16, utf8);
+		ejoy2d_win_char((char *)utf8);
 		break;
 	}
 	}

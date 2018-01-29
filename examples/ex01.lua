@@ -53,6 +53,10 @@ end
 function game.on_close()
 end
 
+function game.on_char(char)
+	print(char)
+end
+
 ej.start(game)
 
 

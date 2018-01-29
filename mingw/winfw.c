@@ -119,3 +119,8 @@ void
 ejoy2d_win_close() {
 	ejoy2d_game_exit(G->game);
 }
+
+void
+ejoy2d_win_char(const char *utf8) {
+	ejoy2d_game_char(G->game, utf8);
+}

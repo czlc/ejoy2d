@@ -13,5 +13,5 @@ void ejoy2d_win_frame();
 void ejoy2d_win_update(int elapse);
 void ejoy2d_win_touch(int x, int y,int touch);
 void ejoy2d_win_close();
-
+void ejoy2d_win_char(const char *utf8);
 #endif

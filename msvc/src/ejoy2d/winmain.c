@@ -25,6 +25,7 @@ WinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPSTR /*lpCmdLine*
 	freopen_s(&new_file, "CONOUT$", "w", stdout);
 	freopen_s(&new_file, "CONOUT$", "w", stderr);
 	onexit(exit_event);
+	SetConsoleOutputCP(CP_UTF8);
 
 	int retval = main(__argc, __argv);
 	has_exception = false;
