@@ -41,7 +41,7 @@ struct sprite {
 	int frame;
 	int flags;
 	const char *name;							/* 在父节点中的名字 */
-	struct material *material;
+	struct material *material;					/* 材质， 是一个 userdata 见 lnewmaterial */
 	union {
 		struct sprite * children[1];			/* animaton 的子节点 */
 		struct rich_text * rich_text;

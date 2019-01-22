@@ -83,7 +83,7 @@ struct attrib_layout {
 	int offset;					/* 此attrib在整个vertex结构中的偏移 */
 };
 
-// shader 对象
+// 为何其它 uniform 没有放到这里，而是在 program ?
 struct shader {
 	GLuint glid;						// pgid
 #ifdef VAO_ENABLE

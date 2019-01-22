@@ -302,7 +302,7 @@ local function create_shader(id, uniform)
 			local loc = index-1
 			local format = u.type
 			s[u.name] = function(...)
-				uniform_set(id, loc, format, ...)
+				uniform_set(id, loc, format, ...)	-- 这里是设置全局的
 			end
 		end
 		return s
@@ -324,12 +324,12 @@ local function material_meta(id, arg)
 		for index , u in ipairs(uniform) do
 			local loc = index-1
 			index_table[u.name] = function(self, ...)
-				material_setuniform(self.__obj, loc, ...) -- __obj是material这个userdata
+				material_setuniform(self.__obj, loc, ...) -- __obj是material这个userdata，... 是参数列表
 			end
 		end
 		if arg.texture then
 			index_table.texture = function(self, ...)
-				material_settexture(self.__obj, ...)
+				material_settexture(self.__obj, ...)	-- ... 参数为 channel, gtexid
 			end
 		end
 	end
@@ -383,6 +383,7 @@ function shader.define( arg )
 
 	s.load(id, fs, vs, arg.texture)
 
+	-- 其实可以放到 load 参数中去，不过这样接口可能就变得复杂一些了
 	local uniform = arg.uniform
 	if uniform then
 		for _,v in ipairs(uniform) do

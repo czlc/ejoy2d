@@ -17,7 +17,7 @@ lload(lua_State *L) {
 	const char *fs = luaL_checkstring(L, 2);
 	const char *vs = luaL_checkstring(L, 3);
 	
-	/* uniform sampler2D 的名字列表 */
+	/* uniform sampler2D 的名字列表，可以根据名字找到它在 shader 中的定位 */
 	if (lua_istable(L, 4)) {
 		int texture_number = lua_rawlen(L, 4);
 		ARRAY(const char *, name, texture_number);

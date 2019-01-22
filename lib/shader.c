@@ -36,10 +36,10 @@ struct uniform {
 /* 共有16个program对象 ,上层使用它，通过它来操作对应的shader对象 */
 struct program {
 	RID prog;								/* 关联的shader对象，见render.c */
-	struct material * material;				/* 当前的material，它通常来自各个sprite，在此记录的目的是如果先后2次绘制material相同就不用apply_material */
+	struct material * material;				/* 当前的material，它通常来自各个sprite，在此记录的目的是如果先后2次绘制material相同就不用apply_material，并无其它作用，只是判断是否需要 apply */
 	int texture_number;						/* 此program中sample2D 个数 */
 	int uniform_number;						/* 有效uniform 数*/
-	struct uniform uniform[MAX_UNIFORM];	/* uniform 数组 */
+	struct uniform uniform[MAX_UNIFORM];	/* uniform 数组，描述了 uniform 情况 */
 	bool reset_uniform;						/* uniform 是否有修改 */
 	bool uniform_change[MAX_UNIFORM];		/* 标志具体哪些uniform有修改 */
 	float uniform_value[MAX_UNIFORM * 16];	/* 全局uniform，如果有material则会被覆盖 */
@@ -429,7 +429,7 @@ struct material {
 	int texture[MAX_TEXTURE_CHANNEL];	/* 保存的是gtexid */
 	bool uniform_enable[MAX_UNIFORM];	/* 记录material中哪些uniform是有效的 */
 	float uniform[1];					/* 存储uniform数据 */
-	bool reset;
+	bool reset;							/* material 数据是否需要刷新，纹理或者 uniform 被修改的时候要改 */
 };
 
 /* 获得一个prog对应material的大小，因为prog定了，uniform也就定下来了，能通过material修改的也有限*/
